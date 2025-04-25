@@ -8,6 +8,8 @@ import WelcomeScreen from './Pages/WelcomeScreen';
 import UserRollSelect from './Pages/UserRollSelect';
 import RegistrationScreen from './Pages/RegistrationScreen';
 import BuyerLogin from './Pages/BuyerLogin';
+import BuyerDashboard from './Pages/BuyerDashboard';
+import ProductsScreen from './Pages/ProductsScreen';
 
 const Stack = createStackNavigator();
 
@@ -19,6 +21,9 @@ function App() {
         <Stack.Screen name="UserRollSelect" component={UserRollSelect} />
         <Stack.Screen name="Registration" component={RegistrationScreen} />
         <Stack.Screen name="BuyerLogin" component={BuyerLogin}/>
+        <Stack.Screen name="BuyerDashboard" component={BuyerDashboard}/>
+        <Stack.Screen name="ProductsScreen" component={ProductsScreen}/>
+        
       </Stack.Navigator>
     </NavigationContainer>
   );

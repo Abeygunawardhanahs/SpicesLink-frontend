@@ -81,7 +81,7 @@ const RegistrationScreen = ({ navigation }) => {
                                 <Text style={styles.buttonText}>Register</Text>
                             </TouchableOpacity>
                             <Text style={styles.loginText}>
-                                Already have an account? <Text style={styles.loginLink} onPress={() => navigation.navigate('Login')}>Sign in</Text>
+                                Already have an account? <Text style={styles.loginLink} onPress={() => navigation.navigate("BuyerLogin")}>Sign in</Text>
                             </Text>
                         </View>
                     )}
@@ -90,6 +90,8 @@ const RegistrationScreen = ({ navigation }) => {
         </View>
     );
 };
+
+
 
 const styles = StyleSheet.create({
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#4E2A14', padding: 15, marginTop: 20 },

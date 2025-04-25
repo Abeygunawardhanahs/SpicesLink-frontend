@@ -38,13 +38,15 @@ const BuyerLogin = ({ navigation }) => {
           />
         </View>
 
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>Log in</Text>
-        </TouchableOpacity>
-
+        <TouchableOpacity
+        style={styles.button}
+        onPress={() => navigation.navigate('BuyerDashboard')}
+      >
+        <Text style={styles.buttonText}>Log in</Text>
+      </TouchableOpacity>
         <Text style={styles.signUpText}>
           Don't have an account?{" "}
-          <Text style={styles.signUpLink} onPress={() => navigation.navigate("RegistrationScreen")}>
+          <Text style={styles.signUpLink} onPress={() => navigation.navigate("Registration")}>
             Sign in
           </Text>
         </Text>
