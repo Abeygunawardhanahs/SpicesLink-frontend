@@ -1,14 +1,16 @@
 import React from 'react';
-import { View, Text, ImageBackground, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import { View, Text, ImageBackground, TouchableOpacity, StyleSheet, Image ,useNavigation } from 'react-native';
 
-const BuyerDashboard = () => {
+const BuyerDashboard = ({navigation}) => {
+  // const navigation = useNavigation();
   return (
     <ImageBackground source={require('../assets/images/swpices2.jpg')} style={styles.backgroundImage}>
       <View style={styles.container}>
         <Text style={styles.header}>Shop Name</Text>
         
         <View style={styles.gridContainer}>
-          <TouchableOpacity style={styles.card}><Text style={styles.cardText}>Products</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.card}
+          onPress={() => navigation.navigate('ProductsScreen')} ><Text style={styles.cardText}>Products</Text></TouchableOpacity>
           <TouchableOpacity style={styles.card}><Text style={styles.cardText}>Suppliers</Text></TouchableOpacity>
           <TouchableOpacity style={styles.card}><Text style={styles.cardText}>Notifications</Text></TouchableOpacity>
           <TouchableOpacity style={styles.card}><Text style={styles.cardText}>Stocks</Text></TouchableOpacity>

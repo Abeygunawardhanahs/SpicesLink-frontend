@@ -7,7 +7,7 @@ const products = [
   { name: 'Turmeric - Kaha', image: require('../assets/images/turmeric.jpeg') },
   { name: 'Pepper - Gammiris', image: require('../assets/images/pepper.jpg') }, // fixed here
   { name: 'Garcinia - Goraka', image: require('../assets/images/goraka.jpeg') },
-  { name: 'Coffee - Koopi', image: require('../assets/images/koopi.jpg') },
+  { name: 'Coffee - Koopi', image: require('../assets/images/Koopi.jpg') },
 ];
 
 
