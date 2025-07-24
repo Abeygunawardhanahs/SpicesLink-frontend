@@ -1,6 +1,10 @@
-import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Dimensions } from "react-native";
-import Icon from "react-native-vector-icons/FontAwesome";
+import React, { useState, useRef, useEffect } from "react";
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Image,
+  Dimensions, Animated, KeyboardAvoidingView, Platform,
+  StatusBar, Alert, ActivityIndicator, ScrollView
+} from "react-native";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import MaterialIcons from "react-native-vector-icons/MaterialIcons";
 
 const { width } = Dimensions.get("window");
@@ -8,195 +12,244 @@ const { width } = Dimensions.get("window");
 const BuyerLogin = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Animation setup
+  const slideAnim = useRef(new Animated.Value(100)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
   const handleLogin = async () => {
-  try {
+    // 1. Check if fields are empty before sending to server
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
+      Alert.alert('Incomplete Fields', 'Please enter both your email and password.');
+      return; // Stop the function here
     }
 
-    const response = await fetch('http://192.168.1.100:5000/api/users/login/buyer', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email: email.trim(),
-        password
-      }),
-    });
+    setIsLoading(true); // Show loading indicator on button
 
-    const data = await response.json();
+    try {
+      // 2. Send login details to the server
+      const response = await fetch('http://192.168.0.101:5000/api/users/login/buyer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
 
-    if (data.success) {
-      // Store token and user data
-      await AsyncStorage.setItem('userToken', data.data.token);
-      await AsyncStorage.setItem('userData', JSON.stringify(data.data.user));
-      
-      Alert.alert('Success', 'Login successful!');
-      navigation.navigate('BuyerDashboard');
-    } else {
-      Alert.alert('Error', data.message || 'Login failed');
+      const data = await response.json();
+
+      // 3. CHECK THE SERVER RESPONSE
+      if (response.ok && data.success) {
+        // --- SUCCESS CASE ---
+        // If login is successful, store user data
+        await AsyncStorage.setItem('userToken', data.data.token);
+        await AsyncStorage.setItem('userData', JSON.stringify(data.data.user));
+
+        // Show a success message and then NAVIGATE to the dashboard
+        Alert.alert('Login Successful!', 'Welcome back.', [
+          { text: 'Continue', onPress: () => navigation.navigate('BuyerDashboard') }
+        ]);
+
+      } else {
+        // --- FAILURE CASE ---
+        // If login fails (wrong password, user not found, etc.), show an error alert
+        // The user WILL NOT be navigated anywhere. They stay on the login screen.
+        Alert.alert('Login Failed', data.message || 'Invalid email or password.');
+      }
+    } catch (error) {
+      // --- NETWORK ERROR CASE ---
+      // If the phone can't connect to the server, show a network error.
+      // The user WILL NOT be navigated anywhere.
+      console.error('Login error:', error);
+      Alert.alert('Network Error', 'Please check your connection and try again.');
+    } finally {
+      // 4. Stop the loading indicator regardless of success or failure
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Login error:', error);
-    Alert.alert('Error', 'Network error. Please try again.');
-  }
-};
-
-// Replace your login button onPress:
-<TouchableOpacity
-  style={styles.button}
-  onPress={handleLogin} // Changed from navigation.navigate
->
-  <Text style={styles.buttonText}>Log in</Text>
-</TouchableOpacity>
+  };
 
   return (
-    <View style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <MaterialIcons name="arrow-back" size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.topBarTitle}>Buyer Login</Text>
-        <View style={{ width: 24 }} /> {/* Placeholder for balancing */}
-      </View>
-
-      {/* Image */}
-      <Image
-        source={require("../assets/images/BuyerLogin.jpg")}
-        style={styles.image}
-        resizeMode="cover"
-      />
-
-      {/* Login Form */}
-      <View style={styles.overlay}>
-        <Text style={styles.title}>Welcome Back</Text>
-        <Text style={styles.subtitle}>Enter your email and password</Text>
-
-        <View style={styles.inputContainer}>
-          <Icon name="envelope" size={20} color="#8B4513" />
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Your Email Address"
-            placeholderTextColor="#8B4513"
-            value={email}
-            onChangeText={setEmail}
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+      <StatusBar backgroundColor="#4B1E0F" barStyle="light-content" />
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <View style={styles.imageContainer}>
+          <Image
+            source={require("../assets/images/BuyerLogin.jpg")}
+            style={styles.image}
+            resizeMode="cover"
           />
+          <View style={styles.imageOverlay} />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <MaterialIcons name="arrow-back" size={26} color="white" />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.inputContainer}>
-          <Icon name="lock" size={20} color="#8B4513" />
-          <TextInput
-            style={styles.input}
-            placeholder="Enter Your Password"
-            placeholderTextColor="#8B4513"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-          />
-        </View>
+        <Animated.View style={[styles.formContainer, { transform: [{ translateY: slideAnim }], opacity: fadeAnim }]}>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Enter your details to log in</Text>
 
-        <TouchableOpacity
-          style={styles.button}
-          onPress={() => navigation.navigate('BuyerDashboard')}
-        >
-          <Text style={styles.buttonText}>Log in</Text>
-        </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <MaterialIcons name="email" size={22} color="#8B4513" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter Your Email Address"
+              placeholderTextColor="#A0522D"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+          </View>
 
-        <Text style={styles.signUpText}>
-          Don't have an account?{" "}
-          <Text style={styles.signUpLink} onPress={() => navigation.navigate("Registration")}>
-            Sign Up
-          </Text>
-        </Text>
-      </View>
-    </View>
+          <View style={styles.inputContainer}>
+            <MaterialIcons name="lock" size={22} color="#8B4513" style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter Your Password"
+              placeholderTextColor="#A0522D"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+          </View>
+
+          {/* This button triggers the handleLogin function which contains all the logic */}
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading
+              ? <ActivityIndicator size="small" color="#FFFFFF" />
+              : <Text style={styles.buttonText}>Log In</Text>
+            }
+          </TouchableOpacity>
+
+          <View style={styles.footer}>
+            <Text style={styles.signUpText}>Don't have an account? </Text>
+            {/* --- SIGN UP NAVIGATION --- */}
+            {/* This button navigates the user directly to the Registration screen */}
+            <TouchableOpacity onPress={() => navigation.navigate("RegistrationScreen")}>
+              <Text style={styles.signUpLink}>Sign Up</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: "#FFF8F0", // A light cream background to complement the theme
   },
-  topBar: {
-    height: 60,
-    backgroundColor: "#4B1E0F",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "#8B4513",
-  },
-  topBarTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color:"white",
+  imageContainer: {
+    width: width,
+    height: 280, // Increased height for more impact
+    backgroundColor: '#4B1E0F',
   },
   image: {
-    width: width,
-    height: 200,
+    width: '100%',
+    height: '100%',
   },
-  overlay: {
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark overlay for better text contrast
+  },
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? StatusBar.currentHeight + 15 : 50,
+    left: 15,
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  formContainer: {
     flex: 1,
-    backgroundColor: "rgba(255,255,255,0.9)",
-    margin: 20,
-    padding: 20,
-    borderRadius: 10,
-    alignItems: "center",
-    elevation: 5, // slight shadow for Android
+    backgroundColor: "#FFF8F0",
+    paddingHorizontal: 25,
+    paddingTop: 30,
+    marginTop: -40, // Pulls the form up over the image
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
-    color: "#8B4513",
-    marginBottom: 5,
+    color: "#4B1E0F", // Darker brown from your palette
+    textAlign: 'center',
+    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    marginVertical: 10,
-    color: "#5a3e2b",
+    fontSize: 16,
+    color: "#5a3e2b", // Softer brown
     textAlign: "center",
+    marginBottom: 30,
   },
   inputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#8B4513",
-    borderRadius: 8,
-    padding: 10,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    paddingHorizontal: 15,
     width: "100%",
-    marginVertical: 8,
-    backgroundColor: "#F5DEB3",
+    height: 55,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: "#F5DEB3",
+    elevation: 2,
+    shadowColor: '#8B4513',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  inputIcon: {
+    marginRight: 10,
   },
   input: {
     flex: 1,
-    marginLeft: 10,
+    fontSize: 16,
     color: "#5a3e2b",
   },
-  button: {
+  loginButton: {
     backgroundColor: "#4B1E0F",
-    padding: 12,
-    borderRadius: 8,
+    paddingVertical: 15,
+    borderRadius: 12,
     marginTop: 10,
     width: "100%",
     alignItems: "center",
+    elevation: 3,
+    shadowColor: '#4B1E0F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
   },
   buttonText: {
     color: "white",
+    fontSize: 18,
     fontWeight: "bold",
   },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 25,
+    paddingBottom: 20,
+  },
   signUpText: {
-    marginTop: 10,
+    fontSize: 15,
     color: "#5a3e2b",
   },
   signUpLink: {
     fontWeight: "bold",
     color: "#8B4513",
+    fontSize: 15,
   },
 });
 

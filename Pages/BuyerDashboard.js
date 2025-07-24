@@ -1,4 +1,4 @@
-import React from 'react';
+import React ,{useEffect, useState} from 'react';
 import { 
   View, 
   Text, 
@@ -10,6 +10,8 @@ import {
   Platform 
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
+
+
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,12 +26,20 @@ const getResponsiveSize = (small, medium, large) => {
   return medium;
 };
 
+
 const getResponsiveWidth = (percentage) => {
   const maxWidth = isTablet ? 600 : width;
   return Math.min(width * percentage, maxWidth * percentage);
 };
 
 const BuyerDashboard = ({ navigation }) => {
+    useEffect(() => {
+    fetch('http://192.168.1.100:5000/api/products')  // Replace with real IP
+      .then(res => res.json())
+      .then(data => setProducts(data))
+      .catch(error => console.log('Fetch error:', error));
+  }, []);
+
   return (
     <ImageBackground 
       source={require('../assets/images/download.jpg')}
