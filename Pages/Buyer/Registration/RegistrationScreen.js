@@ -9,16 +9,16 @@ import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
 import { Formik } from 'formik';
 import * as Yup from 'yup';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useProducts } from '../../ProductContext';
+// import { useProducts } from '../../ProductContext'; // Removed product context usage
 
 // --- API Configuration ---
 const API_URL = 'http://192.168.0.101:5000/api/users/register/buyer';
 
 // --- UPDATED: Fields to be rendered with FloatingLabelInput ---
-// We have removed shopLocation and products as they now have custom components.
 const TEXT_INPUT_FIELDS = [
   { name: 'shopName', icon: 'storefront', iconType: 'material', placeholder: 'e.g., Green Spices Mart', label: 'Shop Name', autoCapitalize: 'words' },
   { name: 'shopOwnerName', icon: 'person', iconType: 'material', placeholder: 'e.g., John Perera', label: 'Owner Name', autoCapitalize: 'words' },
+  { name: 'shopLocation', icon: 'map', iconType: 'material', placeholder: 'e.g., 123 Main St, Colombo', label: 'Shop Address', autoCapitalize: 'words' },
   { name: 'contactNumber', icon: 'phone', iconType: 'material', placeholder: 'e.g., 0771234567', label: 'Contact Number', keyboardType: 'phone-pad' },
   { name: 'emailAddress', icon: 'email', iconType: 'material', placeholder: 'e.g., you@example.com', label: 'Email Address', keyboardType: 'email-address' },
   { name: 'password', icon: 'lock', iconType: 'material', placeholder: 'Your secure password', label: 'Password', secure: true },
@@ -26,75 +26,26 @@ const TEXT_INPUT_FIELDS = [
 ];
 
 // --- UPDATED: Validation Schema ---
-// Handles the new data types for location (object) and products (array).
 const validationSchema = Yup.object().shape({
   shopName: Yup.string().required('Shop name is required'),
   shopOwnerName: Yup.string().required('Owner name is required'),
-  shopLocation: Yup.object().nullable().required('Please select a shop location from the map'),
-  contactNumber: Yup.string().matches(/^[0-9]+$/, 'Must be only digits').min(10, 'Must be at least 10 digits').required('Contact number is required'),
-  products: Yup.array().min(1, 'Please add at least one product').required('Products are required'),
+  shopLocation: Yup.string().required('Shop address is required'),
+  contactNumber: Yup.string()
+    .matches(/^[0-9]+$/, 'Must be only digits')
+    .min(10, 'Must be at least 10 digits')
+    .required('Contact number is required'),
+  // Removed products validation
   emailAddress: Yup.string().email('Invalid email address').required('Email is required'),
   password: Yup.string()
     .min(6, 'Password must be at least 6 characters')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Must include uppercase, lowercase, and a number')
     .required('Password is required'),
-  confirmPassword: Yup.string().oneOf([Yup.ref('password')], 'Passwords must match').required('Please confirm your password')
+  confirmPassword: Yup.string()
+    .oneOf([Yup.ref('password')], 'Passwords must match')
+    .required('Please confirm your password')
 });
 
-
-// --- NEW: ProductTagInput Component ---
-const ProductTagInput = ({ label, products, onProductsChange, error }) => {
-  const [text, setText] = useState('');
-
-  const addProduct = () => {
-    const newProduct = text.trim();
-    if (newProduct && !products.includes(newProduct)) {
-      const updatedProducts = [...products, newProduct];
-      onProductsChange(updatedProducts); // Update parent Formik state
-      setText(''); // Clear input
-    }
-  };
-
-  const removeProduct = (index) => {
-    const updatedProducts = products.filter((_, i) => i !== index);
-    onProductsChange(updatedProducts);
-  };
-
-  return (
-    <View style={styles.inputWrapper}>
-        <Text style={styles.formLabel}>{label}</Text>
-        <View style={[styles.tagInputContainer, error && styles.errorInput]}>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tagArea}>
-                {products.map((product, index) => (
-                    <View key={index} style={styles.tag}>
-                        <Text style={styles.tagText}>{product}</Text>
-                        <TouchableOpacity onPress={() => removeProduct(index)}>
-                            <MaterialIcons name="cancel" size={18} color="#FFF" style={{ opacity: 0.8 }}/>
-                        </TouchableOpacity>
-                    </View>
-                ))}
-            </ScrollView>
-            <View style={styles.inputRow}>
-                <TextInput
-                    style={styles.tagTextInput}
-                    placeholder="Type product and hit 'Add'"
-                    placeholderTextColor="#D2B48C"
-                    value={text}
-                    onChangeText={setText}
-                    onSubmitEditing={addProduct} // Allows adding with the keyboard's 'return' key
-                />
-                <TouchableOpacity style={styles.addButton} onPress={addProduct}>
-                    <Text style={styles.addButtonText}>Add</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-        {error && <Text style={styles.errorText}>{error}</Text>}
-    </View>
-  );
-};
-
-
-// --- FloatingLabelInput Component (No Changes) ---
+// --- FloatingLabelInput Component ---
 const FloatingLabelInput = ({ label, icon, iconType, value, onChangeText, onBlur, error, touched, secure, placeholder, keyboardType, autoCapitalize }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -107,29 +58,54 @@ const FloatingLabelInput = ({ label, icon, iconType, value, onChangeText, onBlur
   const handleFocus = () => setIsFocused(true);
   const handleBlur = () => { setIsFocused(false); onBlur(); };
 
-  const labelStyle = { position: 'absolute', left: 50, top: animatedIsFocused.interpolate({ inputRange: [0, 1], outputRange: [18, -10] }), fontSize: animatedIsFocused.interpolate({ inputRange: [0, 1], outputRange: [16, 12] }), color: animatedIsFocused.interpolate({ inputRange: [0, 1], outputRange: ['#A0522D', '#CD853F'] }), backgroundColor: '#FFF', paddingHorizontal: 4, zIndex: 1 };
+  const labelStyle = {
+    position: 'absolute',
+    left: 50,
+    top: animatedIsFocused.interpolate({ inputRange: [0, 1], outputRange: [18, -10] }),
+    fontSize: animatedIsFocused.interpolate({ inputRange: [0, 1], outputRange: [16, 12] }),
+    color: animatedIsFocused.interpolate({ inputRange: [0, 1], outputRange: ['#A0522D', '#CD853F'] }),
+    backgroundColor: '#FFF',
+    paddingHorizontal: 4,
+    zIndex: 1
+  };
   const IconComponent = MaterialIcons;
 
   return (
     <View style={styles.inputWrapper}>
       <Animated.Text style={labelStyle}>{label}</Animated.Text>
-      <View style={[ styles.inputContainer, isFocused && styles.focusedInput, error && touched && styles.errorInput ]}>
+      <View style={[styles.inputContainer, isFocused && styles.focusedInput, error && touched && styles.errorInput]}>
         <IconComponent name={icon} size={22} color={isFocused ? '#CD853F' : '#A0522D'} style={styles.inputIcon} />
-        <TextInput style={styles.textInput} placeholder={isFocused ? placeholder : ''} placeholderTextColor="#D2B48C" onChangeText={onChangeText} onFocus={handleFocus} onBlur={handleBlur} value={value} secureTextEntry={secure && !showPassword} keyboardType={keyboardType || 'default'} autoCapitalize={autoCapitalize || 'none'}/>
-        {secure && (<TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.passwordToggle}><MaterialIcons name={showPassword ? 'visibility' : 'visibility-off'} size={22} color="#A0522D" /></TouchableOpacity>)}
+        <TextInput
+          style={styles.textInput}
+          placeholder={isFocused ? placeholder : ''}
+          placeholderTextColor="#D2B48C"
+          onChangeText={onChangeText}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          value={value}
+          secureTextEntry={secure && !showPassword}
+          keyboardType={keyboardType || 'default'}
+          autoCapitalize={autoCapitalize || 'none'}
+        />
+        {secure && (
+          <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.passwordToggle}>
+            <MaterialIcons name={showPassword ? 'visibility' : 'visibility-off'} size={22} color="#A0522D" />
+          </TouchableOpacity>
+        )}
       </View>
       {error && touched && <Text style={styles.errorText}>{error}</Text>}
     </View>
   );
 };
 
-
-// --- FULLY UPDATED RegistrationScreen Component ---
+// --- RegistrationScreen Component ---
 const RegistrationScreen = ({ navigation }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const [isLoading, setIsLoading] = useState(false);
-  const { initializeProductsFromRegistration, setUser } = useProducts();
+  // Removed product context
+  // const { initializeProductsFromRegistration, setUser } = useProducts();
+  const setUser = () => {}; // Placeholder to avoid errors if setUser called
 
   useEffect(() => {
     Animated.parallel([
@@ -148,9 +124,8 @@ const RegistrationScreen = ({ navigation }) => {
       contactNumber: values.contactNumber.trim(),
       emailAddress: values.emailAddress.trim(),
       password: values.password,
-      // Convert location object and products array to strings for the API
-      shopLocation: `${values.shopLocation.latitude}, ${values.shopLocation.longitude}`,
-      products: values.products.join(','),
+      shopLocation: values.shopLocation.trim(),
+      // Removed products field
     };
 
     try {
@@ -171,15 +146,18 @@ const RegistrationScreen = ({ navigation }) => {
           emailAddress: values.emailAddress,
         });
 
-        // Initialize products in context with the array of product names
-        initializeProductsFromRegistration(values.products, userId);
+        // Removed product initialization call
 
         if (Platform.OS === 'web') {
           alert('Registration Successful! You will now be taken to the sign-in page.');
           resetForm();
           navigation.navigate('BuyerLogin');
         } else {
-          Alert.alert('Registration Successful!', 'Your account has been created. Please proceed to sign in.', [{ text: 'Continue to Sign In', onPress: () => { resetForm(); navigation.navigate('BuyerLogin'); }}]);
+          Alert.alert(
+            'Registration Successful!',
+            'Your account has been created. Please proceed to sign in.',
+            [{ text: 'Continue to Sign In', onPress: () => { resetForm(); navigation.navigate('BuyerLogin'); } }]
+          );
         }
       } else {
         Alert.alert('Registration Failed', data.message || 'An unknown error occurred. Please try again.');
@@ -208,18 +186,24 @@ const RegistrationScreen = ({ navigation }) => {
           <Animated.View style={[styles.formContainer, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
             <Formik
               initialValues={{
-                shopName: '', shopOwnerName: '', contactNumber: '',
-                emailAddress: '', password: '', confirmPassword: '',
-                shopLocation: null, products: [] // <-- UPDATED initial values
+                shopName: '',
+                shopOwnerName: '',
+                contactNumber: '',
+                emailAddress: '',
+                password: '',
+                confirmPassword: '',
+                shopLocation: '',
+                // Removed products initial value
               }}
               validationSchema={validationSchema}
               onSubmit={handleRegister}
             >
-              {({ handleChange, handleBlur, handleSubmit, values, errors, touched, setFieldValue }) => (
+              {({ handleChange, handleBlur, handleSubmit, values, errors, touched }) => (
                 <>
                   {TEXT_INPUT_FIELDS.map(field => (
                     <FloatingLabelInput
-                      key={field.name} {...field}
+                      key={field.name}
+                      {...field}
                       value={values[field.name]}
                       onChangeText={handleChange(field.name)}
                       onBlur={handleBlur(field.name)}
@@ -227,36 +211,17 @@ const RegistrationScreen = ({ navigation }) => {
                       touched={touched[field.name]}
                     />
                   ))}
-                  
-                  {/* --- NEW: Location Picker Button --- */}
-                  <View style={styles.inputWrapper}>
-                    <TouchableOpacity
-                      style={[styles.inputContainer, styles.locationButton, errors.shopLocation && touched.shopLocation && styles.errorInput]}
-                      onPress={() => navigation.navigate('MapPicker', {
-                        // Pass a callback to get the location from MapPickerScreen
-                        onLocationSelect: (location) => setFieldValue('shopLocation', location)
-                      })}
-                    >
-                      <MaterialIcons name="map" size={22} color="#A0522D" style={styles.inputIcon} />
-                      <Text style={styles.locationButtonText}>
-                        {values.shopLocation ? 'Location Selected Successfully' : 'Select Shop Location on Map'}
-                      </Text>
-                    </TouchableOpacity>
-                    {errors.shopLocation && touched.shopLocation && <Text style={styles.errorText}>{errors.shopLocation}</Text>}
-                  </View>
 
-                  {/* --- NEW: Product Tag Input --- */}
-                  <ProductTagInput
-                    label="Products"
-                    products={values.products}
-                    onProductsChange={(products) => setFieldValue('products', products)}
-                    error={touched.products && errors.products}
-                  />
-
-                  {/* --- Create Account Button --- */}
                   <TouchableOpacity style={styles.registerButton} onPress={handleSubmit} disabled={isLoading}>
                     <LinearGradient colors={['#D2691E', '#A0522D']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.buttonGradient}>
-                      {isLoading ? <ActivityIndicator size="small" color="#FFF" /> : <><Text style={styles.buttonText}>Create Account</Text><MaterialIcons name="arrow-forward" size={20} color="#FFF" style={{ marginLeft: 8 }} /></>}
+                      {isLoading ? (
+                        <ActivityIndicator size="small" color="#FFF" />
+                      ) : (
+                        <>
+                          <Text style={styles.buttonText}>Create Account</Text>
+                          <MaterialIcons name="arrow-forward" size={20} color="#FFF" style={{ marginLeft: 8 }} />
+                        </>
+                      )}
                     </LinearGradient>
                   </TouchableOpacity>
                 </>
@@ -264,6 +229,7 @@ const RegistrationScreen = ({ navigation }) => {
             </Formik>
           </Animated.View>
         </ScrollView>
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>Already have an account? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('BuyerLogin')}>
@@ -275,40 +241,56 @@ const RegistrationScreen = ({ navigation }) => {
   );
 };
 
-// --- FULLY UPDATED Styles ---
+// --- Styles (removed product-related styles) ---
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 20, paddingBottom: 15 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 20,
+    paddingBottom: 15
+  },
   backButton: { padding: 10 },
   headerTitle: { flex: 1, color: '#4A3731', fontSize: 22, fontWeight: '700', textAlign: 'center' },
   headerRight: { width: 42 },
   formContainer: { paddingHorizontal: 25, paddingTop: 10, paddingBottom: 30 },
   inputWrapper: { marginBottom: 28 },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderRadius: 12, paddingHorizontal: 15, height: 58, borderWidth: 1, borderColor: '#EAEAEA', shadowColor: '#D2B48C', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 10, elevation: 3 },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    height: 58,
+    borderWidth: 1,
+    borderColor: '#EAEAEA',
+    shadowColor: '#D2B48C',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3
+  },
   focusedInput: { borderColor: '#CD853F', elevation: 6, shadowColor: '#CD853F' },
   errorInput: { borderColor: '#D32F2F', elevation: 6, shadowColor: '#D32F2F' },
   inputIcon: { marginRight: 12 },
   textInput: { flex: 1, fontSize: 16, color: '#333', height: '100%' },
   passwordToggle: { padding: 5 },
   errorText: { color: '#D32F2F', fontSize: 12, fontWeight: '600', marginTop: 6, marginLeft: 5 },
-  registerButton: { marginTop: 10, borderRadius: 12, shadowColor: '#A0522D', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 10 },
+  registerButton: {
+    marginTop: 10,
+    borderRadius: 12,
+    shadowColor: '#A0522D',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 10
+  },
   buttonGradient: { paddingVertical: 16, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
   buttonText: { color: '#FFF', fontSize: 17, fontWeight: 'bold' },
   footer: { flexDirection: 'row', justifyContent: 'center', paddingVertical: 20, borderTopWidth: 1, borderTopColor: '#EAEAEA' },
   footerText: { fontSize: 15, color: '#666' },
   loginLink: { color: '#D2691E', fontWeight: 'bold', fontSize: 15 },
-  // --- NEW STYLES ---
-  formLabel: { color: '#CD853F', fontWeight: '600', marginBottom: 10, marginLeft: 5, fontSize: 16 },
-  locationButton: { justifyContent: 'flex-start' },
-  locationButtonText: { fontSize: 16, color: '#333' },
-  tagInputContainer: { backgroundColor: '#FFFFFF', borderRadius: 12, paddingVertical: 5, paddingHorizontal: 10, borderWidth: 1, borderColor: '#EAEAEA', minHeight: 100 },
-  tagArea: { flexDirection: 'row', flexWrap: 'wrap', paddingBottom: 5, alignItems: 'center' },
-  tag: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#A0522D', borderRadius: 15, paddingVertical: 6, paddingHorizontal: 12, marginRight: 8, marginBottom: 8 },
-  tagText: { color: '#FFF', marginRight: 8, fontWeight: '500' },
-  inputRow: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#F0F0F0', paddingTop: 8, marginTop: 5 },
-  tagTextInput: { flex: 1, height: 40, fontSize: 16, color: '#333' },
-  addButton: { backgroundColor: '#D2691E', paddingVertical: 8, paddingHorizontal: 18, borderRadius: 8 },
-  addButtonText: { color: 'white', fontWeight: 'bold', fontSize: 15 },
 });
 
 export default RegistrationScreen;

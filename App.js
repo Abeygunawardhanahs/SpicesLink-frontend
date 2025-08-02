@@ -21,6 +21,7 @@ import ClovesPriceList from './Pages/Buyer/Products/Cloves/ClovesPriceList';
 import ClovesPriceUpdate from './Pages/Buyer/Products/Cloves/ClovesPriceUpdate';
 
 
+
 const Stack = createStackNavigator();
 
 function App() {
@@ -42,6 +43,7 @@ function App() {
         <Stack.Screen name='ClovesPriceUpdate' component={ClovesPriceUpdate} />
         <Stack.Screen name="SuppliersList" component={SuppliersList}/>
         <Stack.Screen name="SupplierDetails" component={SupplierDetails} />  
+       
         
       </Stack.Navigator>
     </NavigationContainer>

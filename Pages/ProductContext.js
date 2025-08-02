@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProductContext = createContext();
-const API_BASE_URL = 'http://192.168.0.101:5000/api'; // Make sure this IP is correct for your network
+const API_BASE_URL = 'http://192.168.1.101:5000/api/users'; // Make sure this IP is correct for your network
 
 export const ProductProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
@@ -95,7 +95,7 @@ const initializeProductsFromRegistration = (productList, userId) => {
         // The MongoDB '_id' will be added when it's saved to the server later.
         id: `${userId}-${name.trim()}-${Date.now()}`,
         name: name.trim(),
-        image: image, // The image is a local 'require()' resource, which results in a number.
+        image:product.image, // The image is a local 'require()' resource, which results in a number.
         description: 'Set a description for this product.',
         price: '0.00',
       };
