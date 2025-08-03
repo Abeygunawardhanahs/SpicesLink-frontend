@@ -36,7 +36,7 @@ const BuyerLogin = ({ navigation }) => {
 
     try {
       // 2. Send login details to the server
-      const response = await fetch('http://192.168.0.100:5000/api/users/login/buyer', {
+      const response = await fetch('http://192.168.0.101:5000/api/users/login/buyer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
@@ -45,18 +45,29 @@ const BuyerLogin = ({ navigation }) => {
       const data = await response.json();
 
       // 3. CHECK THE SERVER RESPONSE
-      if (response.ok && data.success) {
-        // --- SUCCESS CASE ---
-        // If login is successful, store user data
-        await AsyncStorage.setItem('userToken', data.data.token);
-        await AsyncStorage.setItem('userData', JSON.stringify(data.data.user));
+      // if (response.ok && data.success) {
+      //   // --- SUCCESS CASE ---
+      //   // If login is successful, store user data
+      //   await AsyncStorage.setItem('userToken', data.data.token);
+      //   await AsyncStorage.setItem('userData', JSON.stringify(data.data.user));
 
-        // Show a success message and then NAVIGATE to the dashboard
-        Alert.alert('Login Successful!', 'Welcome back.', [
-          { text: 'Continue', onPress: () => navigation.navigate('BuyerDashboard') }
-        ]);
+      //   // Show a success message and then NAVIGATE to the dashboard
+      //   Alert.alert('Login Successful!', 'Welcome back.', [
+      //     { text: 'Continue', onPress: () => navigation.navigate('BuyerDashboard') }
+      //   ]);
 
-      } else {
+      // }
+    if (response.ok && data.success) {
+      await AsyncStorage.setItem('userToken', data.data.token);
+      await AsyncStorage.setItem('userData', JSON.stringify(data.data.user));
+  Alert.alert('Success', 'Login successful! Redirecting...');
+  navigation.reset({
+    index: 0,
+    routes: [{ name: 'BuyerDashboard' }]
+  });
+}
+
+       else {
         // --- FAILURE CASE ---
         // If login fails (wrong password, user not found, etc.), show an error alert
         // The user WILL NOT be navigated anywhere. They stay on the login screen.

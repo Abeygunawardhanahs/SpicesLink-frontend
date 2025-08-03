@@ -34,7 +34,7 @@ const getResponsiveWidth = (percentage) => {
 
 const BuyerDashboard = ({ navigation }) => {
     useEffect(() => {
-    fetch('http://192.168.1.100:5000/api/products')  // Replace with real IP
+    fetch('http://192.168.0.101:5000/api/products')  // Replace with real IP
       .then(res => res.json())
       .then(data => setProducts(data))
       .catch(error => console.log('Fetch error:', error));
@@ -49,8 +49,10 @@ const BuyerDashboard = ({ navigation }) => {
       {/* Top Bar */}
       <View style={styles.topBar}>
         <TouchableOpacity 
-          onPress={() => navigation.goBack()}
-          style={styles.backButton}
+          onPress={() => navigation.reset({
+  index: 0,
+  routes: [{ name: 'BuyerLogin' }]
+})}
         >
           <MaterialIcons 
             name="arrow-back" 

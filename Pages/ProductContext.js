@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProductContext = createContext();
-const API_BASE_URL = 'http://192.168.1.101:5000/api/users'; // Make sure this IP is correct for your network
+const API_BASE_URL = 'http://192.168.0.101:5000/api/users'; // Make sure this IP is correct for your network
 
 export const ProductProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
