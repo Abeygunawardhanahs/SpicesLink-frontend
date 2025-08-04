@@ -33,8 +33,10 @@ const getResponsiveWidth = (percentage) => {
 };
 
 const BuyerDashboard = ({ navigation }) => {
+  const [products, setProducts] = useState([]);
+
     useEffect(() => {
-    fetch('http://192.168.0.101:5000/api/products')  // Replace with real IP
+    fetch('http://192.168.0.100:5000/api/products')  // Replace with real IP
       .then(res => res.json())
       .then(data => setProducts(data))
       .catch(error => console.log('Fetch error:', error));

@@ -2,31 +2,30 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const ProductContext = createContext();
-const API_BASE_URL = 'http://192.168.0.101:5000/api/users'; // Make sure this IP is correct for your network
+const API_BASE_URL = 'http://192.168.0.100:5000/api/products'; // Adjust IP/Port if needed
 
 export const ProductProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [authToken, setAuthToken] = useState(null);
 
-  // Load user data and token from storage when the app starts
   useEffect(() => {
     loadUserData();
   }, []);
 
   const loadUserData = async () => {
     try {
-      // Using 'userToken' as this is what your login screen likely saves
       const token = await AsyncStorage.getItem('userToken');
       const userData = await AsyncStorage.getItem('userData');
-      
+
       if (token && userData) {
         setAuthToken(token);
-        setCurrentUser(JSON.parse(userData));
-        await fetchProducts(token); // Fetch products from server for logged-in user
+        const parsedUser = JSON.parse(userData);
+        setCurrentUser(parsedUser);
+        await fetchProducts(token, parsedUser._id);
       }
     } catch (error) {
-      console.error('Error loading user data from storage:', error);
+      console.error('Error loading user data:', error);
     }
   };
 
@@ -35,17 +34,16 @@ export const ProductProvider = ({ children }) => {
     try {
       await AsyncStorage.setItem('userData', JSON.stringify(user));
     } catch (error) {
-      console.error('Error saving user data to storage:', error);
+      console.error('Error saving user data:', error);
     }
   };
 
   const setToken = async (token) => {
     setAuthToken(token);
     try {
-      // Use 'userToken' to be consistent
       await AsyncStorage.setItem('userToken', token);
     } catch (error) {
-      console.error('Error saving token to storage:', error);
+      console.error('Error saving token:', error);
     }
   };
 
@@ -55,90 +53,127 @@ export const ProductProvider = ({ children }) => {
       await AsyncStorage.removeItem('userData');
       setAuthToken(null);
       setCurrentUser(null);
-      setProducts([]); // Clear products on logout
+      setProducts([]);
     } catch (error) {
       console.error('Error clearing user data:', error);
     }
   };
 
-  // Fetch all products for the logged-in user from the backend
-  const fetchProducts = async (token = authToken) => {
-    if (!token) return;
-    
+  const fetchProducts = async (token = authToken, buyerId = currentUser?._id) => {
+    if (!token || !buyerId) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/products`, {
+      const response = await fetch(`${API_BASE_URL}/products/buyer/${buyerId}`, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
       if (response.ok) {
         const data = await response.json();
-        setProducts(data.products || []);
+        setProducts(data || []);
       } else {
         console.error('Failed to fetch products:', response.status);
       }
     } catch (error) {
-      console.error('Network error fetching products:', error);
+      console.error('Fetch error:', error);
     }
   };
 
-  // // --- THIS IS THE KEY UPDATED FUNCTION ---
-  // // Creates temporary client-side products immediately after registration for instant UI feedback.
-const initializeProductsFromRegistration = (productList, userId) => {
-  const initialProducts = productList.map(name => {
-  //     // Find the corresponding local image from the map, or use the default one.
-  //     // We convert the name to lowercase to make the mapping case-insensitive.
-  //     const image = productImageMap[name.toLowerCase().trim()] || defaultProductImage;
-      
-      return {
-        // Create a temporary, client-side unique ID.
-        // The MongoDB '_id' will be added when it's saved to the server later.
-        id: `${userId}-${name.trim()}-${Date.now()}`,
-        name: name.trim(),
-        image:product.image, // The image is a local 'require()' resource, which results in a number.
-        description: 'Set a description for this product.',
-        price: '0.00',
-      };
-    });
+  const addProduct = async (product) => {
+    if (!authToken || !currentUser) throw new Error('Authentication required');
+    console.log(currentUser._id)
 
-    // Update the global state with these new products so they appear on the ProductsScreen.
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/add`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: product.name,
+          description: product.description,
+          price: product.price,
+          image: product.image,
+          buyerId: currentUser._id,
+        })
+      });
+
+      if (!response.ok) {
+        console.error('Failed to add product:', response.status);
+        throw new Error(`Failed to add product: ${response.status}`);
+      }
+
+      const newProduct = await response.json();
+      setProducts(prev => [...prev, newProduct]);
+      return newProduct;
+    } catch (error) {
+      console.error('Add product error:', error);
+    }
+  };
+
+  const deleteProduct = async (productId) => {
+    if (!authToken) throw new Error('Authentication required');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+        },
+      });
+
+      if (response.ok) {
+        setProducts(prev => prev.filter(product => product._id !== productId));
+      } else {
+        console.error('Failed to delete product:', response.status);
+      }
+    } catch (error) {
+      console.error('Delete product error:', error);
+    }
+  };
+
+  const updateProduct = async (productId, updates) => {
+    if (!authToken) throw new Error('Authentication required');
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/products/${productId}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${authToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      });
+
+      if (!response.ok) {
+        console.error('Failed to update product:', response.status);
+        return;
+      }
+
+      const updatedProduct = await response.json();
+      setProducts(prev =>
+        prev.map(product =>
+          product._id === productId ? updatedProduct : product
+        )
+      );
+    } catch (error) {
+      console.error('Update product error:', error);
+    }
+  };
+
+  const initializeProductsFromRegistration = (productList, userId) => {
+    const initialProducts = productList.map(name => ({
+      id: `${userId}-${name.trim()}-${Date.now()}`,
+      name: name.trim(),
+      image: require('../assets/images/cinnaman.jpg'), // Default image
+      description: 'Set a description for this product.',
+      price: '0.00',
+    }));
+
     setProducts(initialProducts);
   };
 
-  // Add a new product to the backend
-  const addProduct = async (product) => {
-    // (This function remains as you provided it)
-    if (!authToken) throw new Error('Authentication required');
-    // ... your existing addProduct logic
-  };
-
-  // Delete a product from the backend
-  const deleteProduct = async (productId) => {
-    // (This function remains as you provided it)
-    if (!authToken) throw new Error('Authentication required');
-    // ... your existing deleteProduct logic
-  };
-
-  // Update a product on the backend
-  const updateProduct = async (productId, updates) => {
-    // (This function remains as you provided it)
-    if (!authToken) throw new Error('Authentication required');
-    // ... your existing updateProduct logic
-  };
-
-  // Login a user
-  const login = async (credentials) => {
-    // (This function remains as you provided it)
-    try {
-      const response = await fetch(`${API_BASE_URL}/users/login`, { /* ... */ });
-      // ... your existing login logic
-    } catch (error) {
-      // ...
-    }
-  };
-
-
-  // This value object makes all states and functions available to components
   const value = {
     products,
     currentUser,
@@ -150,8 +185,7 @@ const initializeProductsFromRegistration = (productList, userId) => {
     deleteProduct,
     updateProduct,
     fetchProducts,
-    login,
-    initializeProductsFromRegistration, // <-- Export the updated function
+    initializeProductsFromRegistration,
   };
 
   return (
@@ -161,7 +195,6 @@ const initializeProductsFromRegistration = (productList, userId) => {
   );
 };
 
-// Custom hook to easily use the context in other components
 export const useProducts = () => {
   const context = useContext(ProductContext);
   if (!context) {

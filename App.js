@@ -19,6 +19,7 @@ import SuppliersList from './Pages/Buyer/Suppliers/SuppliersList';
 import SupplierDetails from './Pages/Buyer/Suppliers/SupplierDetails';
 import ClovesPriceList from './Pages/Buyer/Products/Cloves/ClovesPriceList';
 import ClovesPriceUpdate from './Pages/Buyer/Products/Cloves/ClovesPriceUpdate';
+import ProductContext from './Pages/ProductContext'; // Importing ProductContext
 
 
 
@@ -43,6 +44,7 @@ function App() {
         <Stack.Screen name='ClovesPriceUpdate' component={ClovesPriceUpdate} />
         <Stack.Screen name="SuppliersList" component={SuppliersList}/>
         <Stack.Screen name="SupplierDetails" component={SupplierDetails} />  
+        {/* <Stack.Screen name="ProductContext" component={ProductContext} />  */}
        
         
       </Stack.Navigator>

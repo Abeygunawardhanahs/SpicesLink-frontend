@@ -1,10 +1,9 @@
-// ProductsScreen.js
 import React from 'react';
 import { View, Text, StyleSheet, Image, FlatList, TouchableOpacity, Alert } from 'react-native';
 import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import { useProducts } from '../Pages/ProductContext';
 
-const API_BASE_URL = 'http://192.168.0.101:5000'; // Base URL without /api
+const API_BASE_URL = 'http://192.168.0.100:5000/api/products'; // Base URL without /api
 
 const ProductsScreen = ({ navigation }) => {
   const { products, deleteProduct, currentUser } = useProducts();

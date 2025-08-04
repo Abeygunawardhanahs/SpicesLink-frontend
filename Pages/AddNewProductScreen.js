@@ -65,9 +65,12 @@ const handleAddProduct = async () => {
     image: image ? { uri: image } : null,
   };
 
+  console.log(newProduct);
+
   try {
-    await addProduct(newProduct);
-    Alert.alert('Success 🎉', 'Product added successfully!', [
+    response = await addProduct(newProduct);
+    console.log('Product added:', response.body);  
+    Alert.alert('Success', 'Product added successfully!', [
       {
         text: 'Add Another',
         onPress: () => {
@@ -81,6 +84,7 @@ const handleAddProduct = async () => {
       { text: 'View Products', onPress: () => navigation.goBack() },
     ]);
   } catch (error) {
+    console.log(error)
     Alert.alert('Error', error.message || 'Failed to add product. Please try again.');
   } finally {
     setIsLoading(false);
