@@ -1,5 +1,4 @@
-// AddNewProductScreen.js
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,70 +25,154 @@ const AddNewProductScreen = ({ navigation }) => {
   const [image, setImage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const { addProduct } = useProducts();
+  const { addProduct, loading, currentUser, authToken } = useProducts();
+
+  // Debug current user data
+  useEffect(() => {
+    console.log('=== ADD PRODUCT SCREEN DEBUG ===');
+    console.log('Current User:', currentUser);
+    console.log('Auth Token:', authToken ? 'Present' : 'Missing');
+    console.log('User ID:', currentUser?._id);
+    console.log('User Object Keys:', currentUser ? Object.keys(currentUser) : 'No user');
+  }, [currentUser, authToken]);
 
   const categories = ['Spices', 'Herbs', 'Seeds', 'Powders', 'Whole Spices', 'Blends', 'Other'];
 
   const pickImage = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
-      Alert.alert('Permission Required', 'Permission to access the media library is required.');
+    try {
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        Alert.alert('Permission Required', 'Permission to access the media library is required.');
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        setImage(result.assets[0].uri);
+        console.log('Image selected:', result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+
+  const validateForm = () => {
+    if (!productName.trim()) {
+      Alert.alert('Validation Error', 'Please enter a product name');
+      return false;
+    }
+
+    if (price && isNaN(parseFloat(price))) {
+      Alert.alert('Validation Error', 'Please enter a valid price');
+      return false;
+    }
+
+    // Check if user is logged in
+    if (!currentUser) {
+      Alert.alert('Authentication Error', 'You must be logged in to add products');
+      return false;
+    }
+
+    if (!currentUser._id && !currentUser.id) {
+      Alert.alert('Authentication Error', 'User ID is missing. Please log in again.');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleAddProduct = async () => {
+    if (!validateForm()) {
       return;
     }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
+    setIsLoading(true);
 
-    if (!result.canceled) {
-      setImage(result.assets[0].uri);
+    // Get user ID - try both _id and id fields
+    const userId = currentUser._id || currentUser.id;
+    
+    console.log('=== SUBMITTING PRODUCT ===');
+    console.log('User ID being sent:', userId);
+    console.log('Current User:', currentUser);
+
+    const newProduct = {
+      name: productName.trim(),
+      description: description.trim(),
+      price: price.trim() || '0',
+      category,
+      image: image || null,
+      userId: userId, // Make sure this is included
+    };
+
+    console.log('Submitting product:', newProduct);
+
+    try {
+      const response = await addProduct(newProduct);
+      console.log('Product added successfully:', response.data);
+      
+      Alert.alert('Success', 'Product added successfully!', [
+        {
+          text: 'Add Another',
+          onPress: () => {
+            setProductName('');
+            setDescription('');
+            setPrice('');
+            setCategory('Spices');
+            setImage(null);
+          },
+        },
+        { 
+          text: 'View Products', 
+          onPress: () => navigation.goBack() 
+        },
+      ]);
+    } catch (error) {
+      console.error('Error adding product:', error);
+      
+      let errorMessage = 'Failed to add product. Please try again.';
+      
+      if (error.message.includes('User ID is required')) {
+        errorMessage = 'Authentication error. Please logout and login again.';
+      } else if (error.message.includes('400')) {
+        errorMessage = 'Invalid product data. Please check all fields.';
+      } else if (error.message.includes('401')) {
+        errorMessage = 'Authentication failed. Please login again.';
+      } else if (error.message.includes('500')) {
+        errorMessage = 'Server error. Please try again later.';
+      }
+      
+      Alert.alert('Error', errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-const handleAddProduct = async () => {
-  if (!productName.trim()) {
-    Alert.alert('Error', 'Please enter a product name');
-    return;
+  const isFormLoading = isLoading || loading;
+
+  // Show authentication error if no user
+  if (!currentUser) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.errorContainer}>
+          <MaterialIcons name="error" size={60} color="#E74C3C" />
+          <Text style={styles.errorText}>You must be logged in to add products</Text>
+          <TouchableOpacity 
+            style={styles.loginButton}
+            onPress={() => navigation.navigate('LoginScreen')}
+          >
+            <Text style={styles.loginButtonText}>Go to Login</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
   }
-
-  setIsLoading(true);
-
-  const newProduct = {
-    name: productName.trim(),
-    description: description.trim(),
-    price: price.trim(),
-    category,
-    image: image ? { uri: image } : null,
-  };
-
-  console.log(newProduct);
-
-  try {
-    response = await addProduct(newProduct);
-    console.log('Product added:', response.body);  
-    Alert.alert('Success', 'Product added successfully!', [
-      {
-        text: 'Add Another',
-        onPress: () => {
-          setProductName('');
-          setDescription('');
-          setPrice('');
-          setCategory('Spices');
-          setImage(null);
-        },
-      },
-      { text: 'View Products', onPress: () => navigation.goBack() },
-    ]);
-  } catch (error) {
-    console.log(error)
-    Alert.alert('Error', error.message || 'Failed to add product. Please try again.');
-  } finally {
-    setIsLoading(false);
-  }
-};
 
   return (
     <KeyboardAvoidingView
@@ -106,10 +189,20 @@ const handleAddProduct = async () => {
       </LinearGradient>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Debug info (remove in production) */}
+        <View style={styles.debugContainer}>
+          <Text style={styles.debugText}>User: {currentUser?.shopName || currentUser?.name || 'Unknown'}</Text>
+          <Text style={styles.debugText}>ID: {currentUser?._id || currentUser?.id || 'Missing'}</Text>
+        </View>
+
         {/* Image Picker */}
         <View style={styles.imageSection}>
           <Text style={styles.sectionTitle}>Product Image</Text>
-          <TouchableOpacity style={styles.imageContainer} onPress={pickImage}>
+          <TouchableOpacity 
+            style={styles.imageContainer} 
+            onPress={pickImage}
+            disabled={isFormLoading}
+          >
             {image ? (
               <Image source={{ uri: image }} style={styles.productImage} />
             ) : (
@@ -133,6 +226,8 @@ const handleAddProduct = async () => {
               value={productName}
               onChangeText={setProductName}
               placeholderTextColor="#B8A082"
+              editable={!isFormLoading}
+              maxLength={100}
             />
           </View>
 
@@ -147,11 +242,13 @@ const handleAddProduct = async () => {
               numberOfLines={4}
               textAlignVertical="top"
               placeholderTextColor="#B8A082"
+              editable={!isFormLoading}
+              maxLength={500}
             />
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Price</Text>
+            <Text style={styles.inputLabel}>Price (Optional)</Text>
             <TextInput
               style={styles.input}
               placeholder="e.g. 1200.00"
@@ -159,6 +256,7 @@ const handleAddProduct = async () => {
               onChangeText={setPrice}
               placeholderTextColor="#B8A082"
               keyboardType="numeric"
+              editable={!isFormLoading}
             />
           </View>
 
@@ -175,6 +273,7 @@ const handleAddProduct = async () => {
                       category === cat && styles.selectedCategory,
                     ]}
                     onPress={() => setCategory(cat)}
+                    disabled={isFormLoading}
                   >
                     <Text
                       style={[
@@ -222,6 +321,39 @@ const handleAddProduct = async () => {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FEFEFE' },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#E74C3C',
+    textAlign: 'center',
+    marginVertical: 20,
+  },
+  loginButton: {
+    backgroundColor: '#4E2A14',
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 8,
+  },
+  loginButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  debugContainer: {
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    margin: 10,
+    borderRadius: 5,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#666',
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
