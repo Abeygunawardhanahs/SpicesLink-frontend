@@ -19,7 +19,13 @@ import SuppliersList from './Pages/Buyer/Suppliers/SuppliersList';
 import SupplierDetails from './Pages/Buyer/Suppliers/SupplierDetails';
 import ClovesPriceList from './Pages/Buyer/Products/Cloves/ClovesPriceList';
 import ClovesPriceUpdate from './Pages/Buyer/Products/Cloves/ClovesPriceUpdate';
-import ProductContext from './Pages/ProductContext'; // Importing ProductContext
+import { SupplierRegistration } from './Pages/Supplier/SupplierRegistration';
+import AddBankDetails from './Pages/Supplier/AddBankDetails';
+import SupplierLogin from './Pages/Supplier/SupplierLogin';
+import SuccessPage from './Pages/Supplier/SuccessPage';
+import SupplierDashboard from './Pages/Supplier/SupplierDashboard';
+import Products from './Pages/Supplier/Products';
+import ProductShops from './Pages/Supplier/ProductShop';
 
 
 
@@ -44,7 +50,14 @@ function App() {
         <Stack.Screen name='ClovesPriceUpdate' component={ClovesPriceUpdate} />
         <Stack.Screen name="SuppliersList" component={SuppliersList}/>
         <Stack.Screen name="SupplierDetails" component={SupplierDetails} />  
-        {/* <Stack.Screen name="ProductContext" component={ProductContext} />  */}
+        <Stack.Screen name="Supplier" component={SupplierRegistration}/>
+        <Stack.Screen name="AddBankDetails" component={AddBankDetails} />
+        <Stack.Screen name="SupplierLogin" component={SupplierLogin} />
+        <Stack.Screen name="SuccessPage" component={SuccessPage} />
+        <Stack.Screen name="SupplierDashboard" component={SupplierDashboard} />
+        <Stack.Screen name="Products" component={Products}/>
+        <Stack.Screen name="ProductShops" component={ProductShops} />  
+
        
         
       </Stack.Navigator>

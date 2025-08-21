@@ -11,8 +11,6 @@ import {
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
-
-
 const { width, height } = Dimensions.get('window');
 
 // Helper functions for responsive design

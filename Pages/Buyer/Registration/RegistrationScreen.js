@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 // import { useProducts } from '../../ProductContext'; // Removed product context usage
 
 // --- API Configuration ---
-const API_URL = 'http://192.168.0.101:5000/api/users/register/buyer';
+const API_URL = 'http://192.168.0.101:5000/api/buyers/register';
 
 // --- UPDATED: Fields to be rendered with FloatingLabelInput ---
 const TEXT_INPUT_FIELDS = [
@@ -20,7 +20,7 @@ const TEXT_INPUT_FIELDS = [
   { name: 'shopOwnerName', icon: 'person', iconType: 'material', placeholder: 'e.g., John Perera', label: 'Owner Name', autoCapitalize: 'words' },
   { name: 'shopLocation', icon: 'map', iconType: 'material', placeholder: 'e.g., 123 Main St, Colombo', label: 'Shop Address', autoCapitalize: 'words' },
   { name: 'contactNumber', icon: 'phone', iconType: 'material', placeholder: 'e.g., 0771234567', label: 'Contact Number', keyboardType: 'phone-pad' },
-  { name: 'emailAddress', icon: 'email', iconType: 'material', placeholder: 'e.g., you@example.com', label: 'Email Address', keyboardType: 'email-address' },
+  { name: 'email', icon: 'email', iconType: 'material', placeholder: 'e.g., you@example.com', label: 'Email Address', keyboardType: 'email-address' },
   { name: 'password', icon: 'lock', iconType: 'material', placeholder: 'Your secure password', label: 'Password', secure: true },
   { name: 'confirmPassword', icon: 'lock-outline', iconType: 'material', placeholder: 'Confirm your password', label: 'Confirm Password', secure: true }
 ];
@@ -35,7 +35,7 @@ const validationSchema = Yup.object().shape({
     .min(10, 'Must be at least 10 digits')
     .required('Contact number is required'),
   // Removed products validation
-  emailAddress: Yup.string().email('Invalid email address').required('Email is required'),
+  email: Yup.string().email('Invalid email address').required('Email is required'),
   password: Yup.string()
     .min(6, 'Password must be at least 6 characters')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, 'Must include uppercase, lowercase, and a number')
@@ -122,7 +122,7 @@ const RegistrationScreen = ({ navigation }) => {
       shopName: values.shopName.trim(),
       shopOwnerName: values.shopOwnerName.trim(),
       contactNumber: values.contactNumber.trim(),
-      emailAddress: values.emailAddress.trim(),
+      email: values.email.trim(),
       password: values.password,
       shopLocation: values.shopLocation.trim(),
       // Removed products field
@@ -143,7 +143,7 @@ const RegistrationScreen = ({ navigation }) => {
           id: userId,
           shopName: values.shopName,
           shopOwnerName: values.shopOwnerName,
-          emailAddress: values.emailAddress,
+          email: values.email,
         });
 
         // Removed product initialization call
@@ -189,7 +189,7 @@ const RegistrationScreen = ({ navigation }) => {
                 shopName: '',
                 shopOwnerName: '',
                 contactNumber: '',
-                emailAddress: '',
+                email: '',
                 password: '',
                 confirmPassword: '',
                 shopLocation: '',

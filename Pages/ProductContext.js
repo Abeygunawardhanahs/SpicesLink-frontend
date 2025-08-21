@@ -6,7 +6,7 @@ const ProductContext = createContext();
 
 // Environment-based API configuration
 const isWeb = Platform.OS === 'web';
-const API_BASE_URL = isWeb 
+const API_BASE_URL = isWeb
   ? 'http://localhost:5000/api'
   : 'http://192.168.0.100:5000/api';
 
@@ -17,14 +17,30 @@ export const ProductProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [authToken, setAuthToken] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     loadUserData();
   }, []);
 
+  // Auto-fetch products when user or token changes
+  useEffect(() => {
+    if (currentUser && authToken && isInitialized) {
+      const userIdToUse = currentUser._id || currentUser.id;
+      if (userIdToUse) {
+        console.log('Auto-fetching products for user ID:', userIdToUse);
+        fetchProducts();
+      } else {
+        console.warn('User exists but no ID found:', Object.keys(currentUser));
+      }
+    }
+  }, [currentUser, authToken, isInitialized]);
+
   const loadUserData = async () => {
     try {
       setLoading(true);
+      console.log('Loading user data from storage...');
+
       const token = await AsyncStorage.getItem('userToken');
       const userData = await AsyncStorage.getItem('userData');
 
@@ -33,12 +49,22 @@ export const ProductProvider = ({ children }) => {
         const parsedUser = JSON.parse(userData);
         setCurrentUser(parsedUser);
         console.log('Loaded user data:', parsedUser);
-        await fetchProducts(token, parsedUser._id);
+
+        // Fetch products immediately after loading user data
+        const userIdToUse = parsedUser._id || parsedUser.id;
+        if (userIdToUse) {
+          await fetchProducts(token, userIdToUse);
+        } else {
+          console.warn('User loaded but no ID found:', Object.keys(parsedUser));
+        }
+      } else {
+        console.log('No stored user data found');
       }
     } catch (error) {
       console.error('Error loading user data:', error);
     } finally {
       setLoading(false);
+      setIsInitialized(true);
     }
   };
 
@@ -69,25 +95,30 @@ export const ProductProvider = ({ children }) => {
       setAuthToken(null);
       setCurrentUser(null);
       setProducts([]);
+      setIsInitialized(false);
       console.log('User data cleared');
     } catch (error) {
       console.error('Error clearing user data:', error);
     }
   };
 
-  const fetchProducts = async (token = authToken, buyerId = currentUser?._id) => {
+  const fetchProducts = async (token = authToken, buyerId = currentUser?._id || currentUser?.id) => {
     if (!token || !buyerId) {
-      console.log('Missing token or buyerId for fetching products');
-      return;
+      console.log('Missing token or buyerId for fetching products', { 
+        token: !!token, 
+        buyerId, 
+        currentUser: currentUser ? Object.keys(currentUser) : null 
+      });
+      return [];
     }
 
     try {
       setLoading(true);
       console.log('Fetching products for buyer:', buyerId);
-      
+
       const response = await fetch(`${API_BASE_URL}/products/buyer/${buyerId}`, {
         method: 'GET',
-        headers: { 
+        headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
@@ -98,13 +129,24 @@ export const ProductProvider = ({ children }) => {
       if (response.ok) {
         const data = await response.json();
         console.log('Fetched products:', data);
-        setProducts(data || []);
+        const productsArray = Array.isArray(data) ? data : [];
+        setProducts(productsArray);
+        return productsArray;
       } else {
         const errorText = await response.text();
         console.error('Failed to fetch products:', response.status, errorText);
+        
+        // Only clear products if it's a 404 or similar client error
+        // Don't clear on server errors (5xx) to keep existing products
+        if (response.status >= 400 && response.status < 500) {
+          setProducts([]);
+        }
+        return [];
       }
     } catch (error) {
       console.error('Fetch products error:', error);
+      // Don't clear products on network error, keep existing ones
+      return products;
     } finally {
       setLoading(false);
     }
@@ -115,20 +157,11 @@ export const ProductProvider = ({ children }) => {
       throw new Error('Authentication required');
     }
 
-    // Get userId from product data or fallback to currentUser
     const userId = product.userId || currentUser._id || currentUser.id;
-    
-    console.log('Adding product for user:', userId);
-    console.log('Product data:', product);
-    console.log('Current user ID:', currentUser._id || currentUser.id);
-
-    if (!userId) {
-      throw new Error('User ID is missing from both product data and current user');
-    }
 
     try {
       setLoading(true);
-      
+
       const requestData = {
         name: product.name,
         description: product.description || '',
@@ -138,7 +171,7 @@ export const ProductProvider = ({ children }) => {
         userId: userId,
       };
 
-      console.log('Request data:', requestData);
+      console.log('Adding product with data:', requestData);
 
       const response = await fetch(`${API_BASE_URL}/products`, {
         method: 'POST',
@@ -149,32 +182,22 @@ export const ProductProvider = ({ children }) => {
         body: JSON.stringify(requestData)
       });
 
-      console.log('Add product response status:', response.status);
-      console.log('Response headers:', response.headers);
-
       const responseText = await response.text();
-      console.log('Raw response:', responseText);
+      console.log('Add product server response:', responseText);
 
       if (!response.ok) {
-        console.error('Server error response:', responseText);
         throw new Error(`Server error: ${response.status} - ${responseText}`);
       }
 
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse response as JSON:', parseError);
-        throw new Error('Invalid JSON response from server');
-      }
+      const result = JSON.parse(responseText);
+      console.log('Product added successfully:', result.product);
 
-      console.log('Product added successfully:', result);
-      
-      // Add the new product to the local state
-      if (result.product) {
-        setProducts(prev => [...prev, result.product]);
-      }
-      
+      // Update local state immediately with the new product
+      setProducts(prevProducts => [...prevProducts, result.product]);
+
+      // Fetch fresh data from server to ensure consistency
+      await fetchProducts();
+
       return { success: true, data: result.product };
     } catch (error) {
       console.error('Add product error:', error);
@@ -202,8 +225,14 @@ export const ProductProvider = ({ children }) => {
       console.log('Delete product response status:', response.status);
 
       if (response.ok) {
+        // Remove from local state immediately
         setProducts(prev => prev.filter(product => product._id !== productId));
         console.log('Product deleted successfully');
+
+        // Refresh from server to ensure consistency
+        setTimeout(() => {
+          fetchProducts();
+        }, 500);
       } else {
         const errorText = await response.text();
         console.error('Failed to delete product:', response.status, errorText);
@@ -243,13 +272,14 @@ export const ProductProvider = ({ children }) => {
 
       const updatedProduct = await response.json();
       console.log('Product updated successfully:', updatedProduct);
-      
+
+      // Update local state immediately
       setProducts(prev =>
         prev.map(product =>
           product._id === productId ? updatedProduct : product
         )
       );
-      
+
       return updatedProduct;
     } catch (error) {
       console.error('Update product error:', error);
@@ -263,7 +293,7 @@ export const ProductProvider = ({ children }) => {
     const initialProducts = productList.map(name => ({
       id: `${userId}-${name.trim()}-${Date.now()}`,
       name: name.trim(),
-      image: require('../assets/images/cinnaman.jpg'), // Default image
+      image: require('../assets/images/cinnaman.jpg'),
       description: 'Set a description for this product.',
       price: '0.00',
     }));
@@ -273,9 +303,28 @@ export const ProductProvider = ({ children }) => {
   };
 
   const refreshProducts = async () => {
+    console.log('Manual refresh products called');
     if (currentUser && authToken) {
       await fetchProducts();
+    } else {
+      console.log('Cannot refresh: missing user or token');
     }
+  };
+
+  const forceRefreshProducts = async () => {
+    console.log('Force refresh products called');
+    const userIdToUse = currentUser?._id || currentUser?.id;
+    if (currentUser && authToken && userIdToUse) {
+      console.log('Force refreshing for user:', userIdToUse);
+      return await fetchProducts(authToken, userIdToUse);
+    } else {
+      console.log('Cannot refresh: missing user, token, or user ID', {
+        hasUser: !!currentUser,
+        hasToken: !!authToken,
+        userId: userIdToUse
+      });
+    }
+    return [];
   };
 
   const value = {
@@ -283,6 +332,7 @@ export const ProductProvider = ({ children }) => {
     currentUser,
     authToken,
     loading,
+    isInitialized,
     setUser,
     setToken,
     clearUserData,
@@ -291,6 +341,7 @@ export const ProductProvider = ({ children }) => {
     updateProduct,
     fetchProducts,
     refreshProducts,
+    forceRefreshProducts,
     initializeProductsFromRegistration,
   };
 

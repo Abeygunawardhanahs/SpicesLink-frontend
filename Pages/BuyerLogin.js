@@ -25,18 +25,17 @@ const BuyerLogin = ({ navigation }) => {
     ]).start();
   }, []);
 
+  // ONLY CHANGED THIS FUNCTION - everything else stays the same
   const handleLogin = async () => {
-    // 1. Check if fields are empty before sending to server
     if (!email || !password) {
       Alert.alert('Incomplete Fields', 'Please enter both your email and password.');
-      return; // Stop the function here
+      return;
     }
 
-    setIsLoading(true); // Show loading indicator on button
+    setIsLoading(true);
 
     try {
-      // 2. Send login details to the server
-      const response = await fetch('http://192.168.0.100:5000/api/users/login/buyer', {
+      const response = await fetch('http://192.168.0.100:5000/api/buyers/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
@@ -44,43 +43,21 @@ const BuyerLogin = ({ navigation }) => {
 
       const data = await response.json();
 
-      // 3. CHECK THE SERVER RESPONSE
-      // if (response.ok && data.success) {
-      //   // --- SUCCESS CASE ---
-      //   // If login is successful, store user data
-      //   await AsyncStorage.setItem('userToken', data.data.token);
-      //   await AsyncStorage.setItem('userData', JSON.stringify(data.data.user));
+      if (response.ok && data.success) {
+        // Store user data
+        await AsyncStorage.setItem('userToken', data.data.token);
+        await AsyncStorage.setItem('userData', JSON.stringify(data.data.buyer));
 
-      //   // Show a success message and then NAVIGATE to the dashboard
-      //   Alert.alert('Login Successful!', 'Welcome back.', [
-      //     { text: 'Continue', onPress: () => navigation.navigate('BuyerDashboard') }
-      //   ]);
+        // Navigate immediately without alert - this is the key change
+        navigation.replace('BuyerDashboard');
 
-      // }
-    if (response.ok && data.success) {
-      await AsyncStorage.setItem('userToken', data.data.token);
-      await AsyncStorage.setItem('userData', JSON.stringify(data.data.user));
-  Alert.alert('Success', 'Login successful! Redirecting...');
-  navigation.reset({
-    index: 0,
-    routes: [{ name: 'BuyerDashboard' }]
-  });
-}
-
-       else {
-        // --- FAILURE CASE ---
-        // If login fails (wrong password, user not found, etc.), show an error alert
-        // The user WILL NOT be navigated anywhere. They stay on the login screen.
+      } else {
         Alert.alert('Login Failed', data.message || 'Invalid email or password.');
       }
     } catch (error) {
-      // --- NETWORK ERROR CASE ---
-      // If the phone can't connect to the server, show a network error.
-      // The user WILL NOT be navigated anywhere.
       console.error('Login error:', error);
       Alert.alert('Network Error', 'Please check your connection and try again.');
     } finally {
-      // 4. Stop the loading indicator regardless of success or failure
       setIsLoading(false);
     }
   };
@@ -130,7 +107,6 @@ const BuyerLogin = ({ navigation }) => {
             />
           </View>
 
-          {/* This button triggers the handleLogin function which contains all the logic */}
           <TouchableOpacity
             style={styles.loginButton}
             onPress={handleLogin}
@@ -144,9 +120,7 @@ const BuyerLogin = ({ navigation }) => {
 
           <View style={styles.footer}>
             <Text style={styles.signUpText}>Don't have an account? </Text>
-            {/* --- SIGN UP NAVIGATION --- */}
-            {/* This button navigates the user directly to the Registration screen */}
-            <TouchableOpacity onPress={() => navigation.navigate("RegistrationScreen")}>
+            <TouchableOpacity onPress={() => navigation.navigate("Registration")}>
               <Text style={styles.signUpLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
@@ -159,11 +133,11 @@ const BuyerLogin = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFF8F0", // A light cream background to complement the theme
+    backgroundColor: "#FFF8F0",
   },
   imageContainer: {
     width: width,
-    height: 280, // Increased height for more impact
+    height: 280,
     backgroundColor: '#4B1E0F',
   },
   image: {
@@ -172,7 +146,7 @@ const styles = StyleSheet.create({
   },
   imageOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)', // Dark overlay for better text contrast
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   backButton: {
     position: 'absolute',
@@ -187,20 +161,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFF8F0",
     paddingHorizontal: 25,
     paddingTop: 30,
-    marginTop: -40, // Pulls the form up over the image
+    marginTop: -40,
     borderTopLeftRadius: 40,
     borderTopRightRadius: 40,
   },
   title: {
     fontSize: 28,
     fontWeight: "bold",
-    color: "#4B1E0F", // Darker brown from your palette
+    color: "#4B1E0F",
     textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: "#5a3e2b", // Softer brown
+    color: "#5a3e2b",
     textAlign: "center",
     marginBottom: 30,
   },
