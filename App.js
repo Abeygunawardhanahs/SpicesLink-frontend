@@ -26,6 +26,8 @@ import SuccessPage from './Pages/Supplier/SuccessPage';
 import SupplierDashboard from './Pages/Supplier/SupplierDashboard';
 import Products from './Pages/Supplier/Products';
 import ProductShops from './Pages/Supplier/ProductShop';
+import ProductPriceScreen from './Pages/ProductPriceScreen';
+import PriceDetailsScreen from './Pages/PriceDetailsScreen';
 
 
 
@@ -57,6 +59,8 @@ function App() {
         <Stack.Screen name="SupplierDashboard" component={SupplierDashboard} />
         <Stack.Screen name="Products" component={Products}/>
         <Stack.Screen name="ProductShops" component={ProductShops} />  
+        <Stack.Screen name="ProductPriceScreen" component={ProductPriceScreen} />
+        <Stack.Screen name="PriceDetailsScreen" component={PriceDetailsScreen} />
 
        
         

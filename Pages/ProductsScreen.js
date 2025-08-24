@@ -49,16 +49,12 @@ const ProductsScreen = ({ navigation }) => {
   }, [isInitialized, currentUser?._id]);
 
   const handleProductPress = (product) => {
-    const productName = product.name.toLowerCase();
-    if (productName.includes('cinnamon')) {
-      navigation.navigate('CinamanScreen');
-    } else if (productName.includes('turmeric')) {
-      navigation.navigate('TurmericDetailScreen');
-    } else if (productName.includes('pepper')) {
-      navigation.navigate('PepperDetailScreen');
-    } else {
-      navigation.navigate('DefaultProductScreen', { product });
-    }
+    // Navigate to ProductPriceScreen for any product
+    navigation.navigate('ProductPriceScreen', { 
+      product: product,
+      productId: product._id,
+      productName: product.name 
+    });
   };
 
   const handleDeleteProduct = async (productId) => {
@@ -129,22 +125,22 @@ const ProductsScreen = ({ navigation }) => {
           <Image source={imageSource} style={styles.itemImage} />
           <View style={styles.productInfo}>
             <Text style={styles.itemText}>{item.name}</Text>
-            {item.description ? (
-              <Text style={styles.itemDescription}>{item.description}</Text>
-            ) : null}
-            {item.price ? (
-              <Text style={styles.itemPrice}>Price: Rs. {item.price}</Text>
-            ) : null}
-            {item.category ? (
-              <Text style={styles.itemCategory}>Category: {item.category}</Text>
-            ) : null}
+            <Text style={styles.tapToManage}>Tap to manage prices</Text>
           </View>
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => handleDeleteProduct(item._id)}
-          >
-            <MaterialIcons name="delete" size={20} color="#E74C3C" />
-          </TouchableOpacity>
+          <View style={styles.cardActions}>
+            <TouchableOpacity
+              style={styles.priceButton}
+              onPress={() => handleProductPress(item)}
+            >
+              <MaterialIcons name="trending-up" size={18} color="#4E2A14" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => handleDeleteProduct(item._id)}
+            >
+              <MaterialIcons name="delete" size={18} color="#E74C3C" />
+            </TouchableOpacity>
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -331,14 +327,43 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   listContainer: { padding: 15, paddingBottom: 100 },
-  card: { backgroundColor: '#fce7c4', borderRadius: 12, flexDirection: 'row', alignItems: 'center', padding: 15, marginBottom: 12, elevation: 3 },
+  card: { 
+    backgroundColor: '#fce7c4', 
+    borderRadius: 12, 
+    flexDirection: 'row', 
+    alignItems: 'center', 
+    padding: 15, 
+    marginBottom: 12, 
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
   itemImage: { width: 60, height: 60, borderRadius: 30, marginRight: 15, backgroundColor: '#e0e0e0' },
   productInfo: { flex: 1 },
-  itemText: { fontSize: 16, fontWeight: 'bold', color: '#5C1D0E', marginBottom: 4 },
-  itemDescription: { fontSize: 14, color: '#8B7355', marginBottom: 4 },
-  itemPrice: { fontSize: 14, color: '#4E2A14', fontWeight: '600', marginBottom: 2 },
-  itemCategory: { fontSize: 12, color: '#8B7355', fontStyle: 'italic' },
-  deleteButton: { padding: 10, marginLeft: 10 },
+  itemText: { fontSize: 18, fontWeight: 'bold', color: '#5C1D0E', marginBottom: 4 },
+  tapToManage: { fontSize: 12, color: '#8B7355', fontStyle: 'italic' },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 10,
+  },
+  priceButton: {
+    backgroundColor: '#F0E6D2',
+    padding: 8,
+    borderRadius: 8,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#4E2A14',
+  },
+  deleteButton: { 
+    backgroundColor: '#FFE5E5',
+    padding: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E74C3C',
+  },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 40 },
   emptyStateTitle: { fontSize: 24, fontWeight: 'bold', color: '#5C1D0E', marginTop: 20, marginBottom: 10 },
   emptyStateText: { fontSize: 16, color: '#8B7355', textAlign: 'center', lineHeight: 24, marginBottom: 30 },
