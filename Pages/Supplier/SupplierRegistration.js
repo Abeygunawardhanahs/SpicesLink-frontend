@@ -41,7 +41,7 @@ const SupplierRegistration = ({ navigation }) => {
             }
 
             try {
-                  const response = await fetch('http://192.168.0.100:5000/api/suppliers/register', {
+                  const response = await fetch('http://localhost:5000/api/suppliers/register', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ fullName, contactNumber, email, password })

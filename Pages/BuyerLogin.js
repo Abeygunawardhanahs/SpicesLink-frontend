@@ -35,7 +35,7 @@ const BuyerLogin = ({ navigation }) => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://192.168.0.100:5000/api/buyers/login', {
+      const response = await fetch('http://localhost:5000/api/buyers/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),

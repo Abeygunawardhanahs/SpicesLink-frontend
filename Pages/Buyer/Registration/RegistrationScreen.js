@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 // import { useProducts } from '../../ProductContext'; // Removed product context usage
 
 // --- API Configuration ---
-const API_URL = 'http://192.168.0.100:5000/api/buyers/register';
+const API_URL = 'http://localhost:5000/api/buyers/register';
 
 // --- UPDATED: Fields to be rendered with FloatingLabelInput ---
 const TEXT_INPUT_FIELDS = [
