@@ -104,10 +104,10 @@ export const ProductProvider = ({ children }) => {
 
   const fetchProducts = async (token = authToken, buyerId = currentUser?._id || currentUser?.id) => {
     if (!token || !buyerId) {
-      console.log('Missing token or buyerId for fetching products', { 
-        token: !!token, 
-        buyerId, 
-        currentUser: currentUser ? Object.keys(currentUser) : null 
+      console.log('Missing token or buyerId for fetching products', {
+        token: !!token,
+        buyerId,
+        currentUser: currentUser ? Object.keys(currentUser) : null
       });
       return [];
     }
@@ -135,7 +135,7 @@ export const ProductProvider = ({ children }) => {
       } else {
         const errorText = await response.text();
         console.error('Failed to fetch products:', response.status, errorText);
-        
+
         // Only clear products if it's a 404 or similar client error
         // Don't clear on server errors (5xx) to keep existing products
         if (response.status >= 400 && response.status < 500) {
@@ -158,17 +158,23 @@ export const ProductProvider = ({ children }) => {
     }
 
     const userId = product.userId || currentUser._id || currentUser.id;
+    const userType = currentUser.role || currentUser.type || currentUser.userType;
+
 
     try {
       setLoading(true);
 
       const requestData = {
         name: product.name,
-        description: product.description || '',
-        price: product.price || '0',
-        category: product.category || 'Uncategorized',
-        image: product.image || null,
+        // description: product.description || '',
+        // price: product.price || '0',
+        // category: product.category || 'Uncategorized',
+        // image: product.image || null,
         userId: userId,
+        userType: userType || 'Buyer',
+        userName: product.userName || currentUser.shopOwnerName || '',
+        shopName: product.shopName || currentUser.shopName || '',
+        location: product.location || currentUser.shopLocation || '',
       };
 
       console.log('Adding product with data:', requestData);

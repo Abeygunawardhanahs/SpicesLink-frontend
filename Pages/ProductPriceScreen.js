@@ -26,10 +26,14 @@ const ProductPriceScreen = ({ route, navigation }) => {
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showAddPriceModal, setShowAddPriceModal] = useState(false);
-  const [newPrice, setNewPrice] = useState('');
+  const [showUpdatePriceModal, setShowUpdatePriceModal] = useState(false);
   const [newPricePer100g, setNewPricePer100g] = useState('');
   const [weeklyQuantity, setWeeklyQuantity] = useState('');
+  const [updatePricePer100g, setUpdatePricePer100g] = useState('');
+  const [updateWeeklyQuantity, setUpdateWeeklyQuantity] = useState('');
   const [isAddingPrice, setIsAddingPrice] = useState(false);
+  const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+  const [currentPriceItem, setCurrentPriceItem] = useState(null);
 
   // Fetch price history for this product
   const fetchPriceHistory = async () => {
@@ -69,19 +73,8 @@ const ProductPriceScreen = ({ route, navigation }) => {
   }, []);
 
   const handleAddPrice = async () => {
-    if (!newPrice.trim()) {
-      Alert.alert('Validation Error', 'Please enter a price');
-      return;
-    }
-
-    const price = parseFloat(newPrice.trim());
     const pricePer100g = parseFloat(newPricePer100g.trim()) || 0;
     const weeklyQty = parseFloat(weeklyQuantity.trim()) || 0;
-
-    if (isNaN(price) || price <= 0) {
-      Alert.alert('Validation Error', 'Please enter a valid price');
-      return;
-    }
 
     setIsAddingPrice(true);
     try {
@@ -91,7 +84,6 @@ const ProductPriceScreen = ({ route, navigation }) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          price: price,
           pricePer100g: pricePer100g,
           weeklyQuantity: weeklyQty,
           date: new Date().toISOString(),
@@ -101,7 +93,6 @@ const ProductPriceScreen = ({ route, navigation }) => {
       if (response.ok) {
         const result = await response.json();
         Alert.alert('Success', 'Price added successfully!');
-        setNewPrice('');
         setNewPricePer100g('');
         setWeeklyQuantity('');
         setShowAddPriceModal(false);
@@ -118,24 +109,62 @@ const ProductPriceScreen = ({ route, navigation }) => {
     }
   };
 
+  const handleUpdatePrice = async () => {
+    const pricePer100g = parseFloat(updatePricePer100g.trim()) || 0;
+    const weeklyQty = parseFloat(updateWeeklyQuantity.trim()) || 0;
+
+    if (!currentPriceItem) return;
+
+    setIsUpdatingPrice(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/products/${productId}/prices/${currentPriceItem._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pricePer100g: pricePer100g,
+          weeklyQuantity: weeklyQty,
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        Alert.alert('Success', 'Price updated successfully!');
+        setUpdatePricePer100g('');
+        setUpdateWeeklyQuantity('');
+        setShowUpdatePriceModal(false);
+        setCurrentPriceItem(null);
+        await fetchPriceHistory();
+      } else {
+        const errorData = await response.json();
+        Alert.alert('Error', errorData.message || 'Failed to update price');
+      }
+    } catch (error) {
+      console.error('Error updating price:', error);
+      Alert.alert('Error', 'Failed to update price. Please try again.');
+    } finally {
+      setIsUpdatingPrice(false);
+    }
+  };
+
   // Navigate to price details page
   const handlePriceItemClick = (priceItem) => {
-    navigation.navigate('PriceDetails', {
+    navigation.navigate('PriceDetailsScreen', {
       priceItem: priceItem,
       productName: productName,
       productId: productId,
     });
   };
 
-  // Navigate to price update page
+  // Open update modal with latest price data
   const handleUpdateClick = () => {
     const latestPrice = getCurrentPrice();
     if (latestPrice) {
-      navigation.navigate('PriceUpdate', {
-        priceItem: latestPrice,
-        productName: productName,
-        productId: productId,
-      });
+      setCurrentPriceItem(latestPrice);
+      setUpdatePricePer100g(latestPrice.pricePer100g?.toString() || '');
+      setUpdateWeeklyQuantity(latestPrice.weeklyQuantity?.toString() || '');
+      setShowUpdatePriceModal(true);
     } else {
       Alert.alert('No Price Data', 'Please add a price first before updating.');
     }
@@ -307,25 +336,12 @@ const ProductPriceScreen = ({ route, navigation }) => {
             </View>
             
             <Text style={styles.modalProductName}>{productName}</Text>
-            
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Price (Rs.)</Text>
-              <TextInput
-                style={styles.priceInput}
-                placeholder="0.00"
-                value={newPrice}
-                onChangeText={setNewPrice}
-                keyboardType="decimal-pad"
-                editable={!isAddingPrice}
-                placeholderTextColor="#B8A082"
-              />
-            </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Price per 100g (Rs.)</Text>
               <TextInput
                 style={styles.priceInput}
-                placeholder="0.00"
+                placeholder="Lkr 0.00"
                 value={newPricePer100g}
                 onChangeText={setNewPricePer100g}
                 keyboardType="decimal-pad"
@@ -335,7 +351,7 @@ const ProductPriceScreen = ({ route, navigation }) => {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Weekly Quantity Requirement (g)</Text>
+              <Text style={styles.inputLabel}>Weekly Quantity Requirement (Kg)</Text>
               <TextInput
                 style={styles.priceInput}
                 placeholder="0"
@@ -372,6 +388,91 @@ const ProductPriceScreen = ({ route, navigation }) => {
                   />
                   <Text style={styles.saveButtonText}>
                     {isAddingPrice ? 'Adding...' : 'Add Price'}
+                  </Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Update Price Modal */}
+      <Modal
+        visible={showUpdatePriceModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowUpdatePriceModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Update Price</Text>
+              <TouchableOpacity
+                onPress={() => setShowUpdatePriceModal(false)}
+                style={styles.modalCloseButton}
+              >
+                <MaterialIcons name="close" size={24} color="#666" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.modalProductName}>{productName}</Text>
+            {currentPriceItem && (
+              <Text style={styles.modalDateText}>
+                Date: {formatDateDisplay(currentPriceItem.date)}
+              </Text>
+            )}
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Price per 100g (Rs.)</Text>
+              <TextInput
+                style={styles.priceInput}
+                placeholder="Lkr 0.00"
+                value={updatePricePer100g}
+                onChangeText={setUpdatePricePer100g}
+                keyboardType="decimal-pad"
+                editable={!isUpdatingPrice}
+                placeholderTextColor="#B8A082"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Text style={styles.inputLabel}>Weekly Quantity Requirement (Kg)</Text>
+              <TextInput
+                style={styles.priceInput}
+                placeholder="0"
+                value={updateWeeklyQuantity}
+                onChangeText={setUpdateWeeklyQuantity}
+                keyboardType="decimal-pad"
+                editable={!isUpdatingPrice}
+                placeholderTextColor="#B8A082"
+              />
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowUpdatePriceModal(false)}
+                disabled={isUpdatingPrice}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity
+                style={[styles.saveButton, isUpdatingPrice && styles.disabledButton]}
+                onPress={handleUpdatePrice}
+                disabled={isUpdatingPrice}
+              >
+                <LinearGradient
+                  colors={isUpdatingPrice ? ['#999', '#666'] : ['#4E2A14', '#6B3820']}
+                  style={styles.saveButtonGradient}
+                >
+                  <MaterialIcons 
+                    name={isUpdatingPrice ? "hourglass-empty" : "edit"} 
+                    size={20} 
+                    color="#FFF" 
+                  />
+                  <Text style={styles.saveButtonText}>
+                    {isUpdatingPrice ? 'Updating...' : 'Update Price'}
                   </Text>
                 </LinearGradient>
               </TouchableOpacity>
@@ -571,6 +672,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#2C2C2C',
     marginBottom: 10,
+  },
+  modalDateText: {
+    fontSize: 14,
+    color: '#8B7355',
+    marginBottom: 15,
+    fontStyle: 'italic',
   },
   inputContainer: {
     marginBottom: 20,

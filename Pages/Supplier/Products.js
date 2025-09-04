@@ -14,15 +14,32 @@ import { MaterialIcons, FontAwesome } from '@expo/vector-icons';
 
 const { width, height } = Dimensions.get('window');
 
-const Products = ({ navigation }) => {
+const Products = ({ navigation, route }) => {
   const [searchText, setSearchText] = useState('');
+  const userId = route?.params?.userId || null;
 
   const products = [
     { id: 1, name: 'Cinnamon - Kurundu', icon: 'leaf' },
     { id: 2, name: 'Turmeric - Kaha', icon: 'circle' },
     { id: 3, name: 'Pepper - Gammiris', icon: 'circle' },
-    { id: 4, name: 'Berries - Goraka', icon: 'circle' },
-    { id: 5, name: 'Coffee - Sisep', icon: 'coffee' },
+    { id: 4, name: 'Berries (Garcinia) - Goraka', icon: 'circle' },
+    { id: 5, name: 'Coffee - Koopi', icon: 'coffee' },
+    { id: 6, name: 'Cardamom - Enasal', icon: 'leaf' },
+    { id: 7, name: 'Cloves - Karabu Nethi', icon: 'leaf' },
+    { id: 8, name: 'Nutmeg - Sadikka', icon: 'leaf' },
+    { id: 9, name: 'Mace - Wasawasi', icon: 'leaf' },
+    { id: 10, name: 'Ginger - Inguru', icon: 'leaf' },
+    { id: 11, name: 'Mustard Seeds - Aba', icon: 'circle' },
+    { id: 12, name: 'Fenugreek - Uluhal', icon: 'circle' },
+    { id: 13, name: 'Cumin - Suduru', icon: 'circle' },
+    { id: 14, name: 'Coriander - Koththamalli', icon: 'circle' },
+    { id: 15, name: 'Fennel Seeds - Maaduru', icon: 'circle' },
+    { id: 16, name: 'Tamarind - Siyambala', icon: 'circle' },
+    { id: 17, name: 'Curry Leaves - Karapincha', icon: 'leaf' },
+    { id: 18, name: 'Lemongrass - Sera', icon: 'leaf' },
+    { id: 19, name: 'Chili - Miris', icon: 'circle' },
+    { id: 20, name: 'Vanilla - Vanilla', icon: 'leaf' },
+    { id: 21, name: 'Areca Nut - Karunka Puwak', icon: 'circle' },
   ];
 
   const filteredProducts = products.filter(product =>
@@ -35,8 +52,10 @@ const Products = ({ navigation }) => {
       style={styles.productItem}
       activeOpacity={0.8}
       onPress={() => {
-        // Navigate to ProductShops page with the selected product
-        navigation.navigate('ProductShops', { product });
+        navigation.navigate('ProductShops', {
+          productName: product.name,
+          userId: userId || 'default-user-id', // Fallback if userId is not available
+        });
       }}
     >
       <LinearGradient
@@ -60,11 +79,10 @@ const Products = ({ navigation }) => {
 
   return (
     <ImageBackground
-      source={require('../../assets/images/download.jpg')} // Same background as dashboard
+      source={require('../../assets/images/download.jpg')}
       style={styles.container}
     >
       <View style={styles.overlay}>
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <MaterialIcons name="arrow-back" size={28} color="#fff" />
@@ -80,7 +98,6 @@ const Products = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
             <MaterialIcons name="search" size={20} color="#cc9966" style={styles.searchIcon} />
@@ -94,7 +111,6 @@ const Products = ({ navigation }) => {
           </View>
         </View>
 
-        {/* Products List */}
         <ScrollView 
           style={styles.productsContainer}
           showsVerticalScrollIndicator={false}

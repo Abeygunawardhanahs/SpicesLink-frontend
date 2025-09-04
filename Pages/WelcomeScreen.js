@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Image, Dimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const WelcomeScreen = ({ navigation }) => {
   // Auto-navigate to UserRollSelect after 5 seconds
@@ -12,6 +13,12 @@ const WelcomeScreen = ({ navigation }) => {
   }, [navigation]);
 
   return (
+    <LinearGradient
+          colors={['#fff8f0', '#ee800298']}
+          style={styles.container}
+        >
+            
+
     <View style={styles.container}>
       {/* Top Section */}
       <View style={styles.topContainer}>
@@ -33,6 +40,7 @@ const WelcomeScreen = ({ navigation }) => {
         />
       </View>
     </View>
+    </LinearGradient>
   );
 };
 
@@ -41,7 +49,7 @@ const { width, height } = Dimensions.get('screen');
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#D4A373',
+    backgroundColor: '#f39344ff',
     justifyContent: 'space-between',
     alignItems: 'center',
   },

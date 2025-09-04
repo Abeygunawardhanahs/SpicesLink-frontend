@@ -8,46 +8,52 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
-  Image,
   Platform,
   StatusBar,
   KeyboardAvoidingView,
+  ActivityIndicator,
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useProducts } from '../Pages/ProductContext';
 
 const AddNewProductScreen = ({ navigation }) => {
   const [productName, setProductName] = useState('');
-  const [image, setImage] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [userDetails, setUserDetails] = useState(null);
+  const [fetchingUser, setFetchingUser] = useState(true);
 
-  const { addProduct, products, loading, currentUser } = useProducts();
+  const { addProduct, products, currentUser } = useProducts();
 
   useEffect(() => {
-    console.log('=== ADD PRODUCT SCREEN ===');
-    console.log('Current User:', currentUser);
+    if (currentUser && currentUser._id) {
+      fetchUserDetails();
+    } else {
+      setFetchingUser(false);
+    }
   }, [currentUser]);
 
-  const pickImage = async () => {
+  const fetchUserDetails = async () => {
+    if (!currentUser || !currentUser._id) return;
+
     try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!permissionResult.granted) {
-        Alert.alert('Permission Required', 'Permission to access the media library is required.');
-        return;
-      }
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        setImage(result.assets[0].uri);
+      setFetchingUser(true);
+      const response = await fetch(`http://localhost:5000/api/buyers/${currentUser._id}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setUserDetails(data.data.buyer || null);
+      } else {
+        console.error('Failed to fetch user details:', data.message);
+        Alert.alert('Error', 'Failed to load your profile information.');
+        setUserDetails(null);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick image. Please try again.');
+      console.error('Error fetching user details:', error);
+      Alert.alert('Error', 'Could not connect to server. Please check your connection.');
+      setUserDetails(null);
+    } finally {
+      setFetchingUser(false);
     }
   };
 
@@ -57,7 +63,6 @@ const AddNewProductScreen = ({ navigation }) => {
       return false;
     }
 
-    // check duplicates for same user
     const duplicate = products.some(
       (p) => p.name.toLowerCase() === productName.trim().toLowerCase()
     );
@@ -70,6 +75,12 @@ const AddNewProductScreen = ({ navigation }) => {
       Alert.alert('Authentication Error', 'You must be logged in to add products');
       return false;
     }
+
+    if (!userDetails || !userDetails.shopName || !userDetails.shopLocation) {
+      Alert.alert('Profile Incomplete', 'Please complete your profile before adding products.');
+      return false;
+    }
+
     return true;
   };
 
@@ -80,22 +91,25 @@ const AddNewProductScreen = ({ navigation }) => {
     try {
       const newProduct = {
         name: productName.trim(),
-        image: image || null,
         userId: currentUser._id,
+        userName: userDetails.shopOwnerName,
+        shopName: userDetails.shopName,
+        location: userDetails.shopLocation,
+        userType: userDetails.userType || 'Buyer',
       };
+
+      console.log('Sending product data:', newProduct);
       await addProduct(newProduct);
 
       Alert.alert('Success', 'Product added successfully!', [
         {
           text: 'Add Another',
-          onPress: () => {
-            setProductName('');
-            setImage(null);
-          },
+          onPress: () => setProductName(''),
         },
         { text: 'View Products', onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
+      console.error('Add product error:', error);
       Alert.alert('Error', 'Failed to add product. Please try again.');
     } finally {
       setIsLoading(false);
@@ -103,8 +117,12 @@ const AddNewProductScreen = ({ navigation }) => {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <StatusBar backgroundColor="#2C1810" barStyle="light-content" />
+
       <LinearGradient colors={['#4E2A14', '#6B3820']} style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <MaterialIcons name="arrow-back" size={24} color="#FFF" />
@@ -114,24 +132,9 @@ const AddNewProductScreen = ({ navigation }) => {
       </LinearGradient>
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-        {/* Image Picker (optional) */}
-        <View style={styles.imageSection}>
-          <Text style={styles.sectionTitle}>Product Image (Optional)</Text>
-          <TouchableOpacity style={styles.imageContainer} onPress={pickImage} disabled={isLoading}>
-            {image ? (
-              <Image source={{ uri: image }} style={styles.productImage} />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <MaterialIcons name="add-a-photo" size={40} color="#8B7355" />
-                <Text style={styles.imagePlaceholderText}>Tap to add image</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        {/* Product Name */}
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>Product Details</Text>
+
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>Product Name *</Text>
             <TextInput
@@ -144,15 +147,77 @@ const AddNewProductScreen = ({ navigation }) => {
               maxLength={100}
             />
           </View>
+
+          <View style={styles.userInfoSection}>
+            <Text style={styles.userInfoTitle}>Your Information</Text>
+
+            {fetchingUser ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color="#4E2A14" />
+                <Text style={styles.loadingText}>Loading your information...</Text>
+              </View>
+            ) : userDetails ? (
+              <>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Shop Name:</Text>
+                  <Text style={styles.infoValue}>{userDetails.shopName || 'Not set'}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Location:</Text>
+                  <Text style={styles.infoValue}>{userDetails.shopLocation || 'Not set'}</Text>
+                </View>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>Owner Name:</Text>
+                  <Text style={styles.infoValue}>{userDetails.shopOwnerName || 'Not set'}</Text>
+                </View>
+                {(!userDetails.shopName || !userDetails.shopLocation) && (
+                  <View style={styles.warningBox}>
+                    <MaterialIcons name="warning" size={16} color="#FFA000" />
+                    <Text style={styles.warningText}>
+                      Please complete your profile information before adding products.
+                    </Text>
+                  </View>
+                )}
+              </>
+            ) : (
+              <View style={styles.errorContainer}>
+                <MaterialIcons name="error-outline" size={20} color="#D32F2F" />
+                <Text style={styles.errorText}>Could not load your information.</Text>
+                <TouchableOpacity onPress={fetchUserDetails} style={styles.retryButton}>
+                  <Text style={styles.retryText}>Try Again</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
         </View>
 
-        {/* Submit Button */}
         <View style={styles.buttonContainer}>
-          <TouchableOpacity style={[styles.addButton, isLoading && styles.disabledButton]} onPress={handleAddProduct} disabled={isLoading}>
-            <LinearGradient colors={isLoading ? ['#999', '#666'] : ['#4E2A14', '#6B3820']} style={styles.buttonGradient}>
+          <TouchableOpacity
+            style={[
+              styles.addButton,
+              isLoading && styles.disabledButton,
+              (!userDetails || !userDetails.shopName || !userDetails.shopLocation) && styles.disabledButton,
+            ]}
+            onPress={handleAddProduct}
+            disabled={isLoading || !userDetails || !userDetails.shopName || !userDetails.shopLocation}
+          >
+            <LinearGradient
+              colors={
+                isLoading || !userDetails || !userDetails.shopName || !userDetails.shopLocation
+                  ? ['#999', '#666']
+                  : ['#4E2A14', '#6B3820']
+              }
+              style={styles.buttonGradient}
+            >
               <View style={styles.buttonContent}>
                 <MaterialIcons name={isLoading ? 'hourglass-empty' : 'add-circle'} size={20} color="#FFF" />
-                <Text style={styles.buttonText}>{isLoading ? 'Adding...' : 'Add Product'}</Text>
+                <Text style={styles.buttonText}>
+                  {isLoading
+                    ? 'Adding...'
+                    : !userDetails || !userDetails.shopName || !userDetails.shopLocation
+                    ? 'Complete Profile First'
+                    : 'Add Product'}
+                </Text>
               </View>
             </LinearGradient>
           </TouchableOpacity>
@@ -169,16 +234,24 @@ const styles = StyleSheet.create({
   headerTitle: { color: '#FFF', fontSize: 20, fontWeight: 'bold', flex: 1, textAlign: 'center' },
   headerRight: { width: 40 },
   scrollView: { flex: 1, paddingHorizontal: 20 },
-  imageSection: { paddingVertical: 20 },
-  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#4E2A14', marginBottom: 15 },
-  imageContainer: { alignItems: 'center' },
-  productImage: { width: 150, height: 150, borderRadius: 12, backgroundColor: '#f0f0f0' },
-  imagePlaceholder: { width: 150, height: 150, borderRadius: 12, backgroundColor: '#F5F5F5', justifyContent: 'center', alignItems: 'center', borderWidth: 2, borderColor: '#E0E0E0', borderStyle: 'dashed' },
-  imagePlaceholderText: { color: '#8B7355', fontSize: 14, marginTop: 8 },
   formSection: { paddingVertical: 20 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#4E2A14', marginBottom: 15 },
   inputGroup: { marginBottom: 20 },
   inputLabel: { fontSize: 16, fontWeight: '600', color: '#4E2A14', marginBottom: 8 },
   input: { borderWidth: 2, borderColor: '#E8E8E8', borderRadius: 12, paddingHorizontal: 15, paddingVertical: 12, fontSize: 16, backgroundColor: '#FEFEFE', color: '#2C2C2C' },
+  userInfoSection: { backgroundColor: '#F9F9F9', padding: 15, borderRadius: 12, marginTop: 20, borderWidth: 1, borderColor: '#E8E8E8' },
+  userInfoTitle: { fontSize: 16, fontWeight: 'bold', color: '#4E2A14', marginBottom: 12 },
+  infoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  infoLabel: { fontSize: 14, color: '#666', fontWeight: '500' },
+  infoValue: { fontSize: 14, color: '#4E2A14', fontWeight: 'bold', flex: 1, textAlign: 'right' },
+  loadingContainer: { alignItems: 'center', padding: 20 },
+  loadingText: { marginTop: 10, color: '#666', fontSize: 14 },
+  errorContainer: { alignItems: 'center', padding: 10 },
+  errorText: { marginTop: 8, color: '#D32F2F', fontSize: 14, textAlign: 'center' },
+  retryButton: { marginTop: 10, padding: 8, backgroundColor: '#4E2A14', borderRadius: 6 },
+  retryText: { color: 'white', fontSize: 14 },
+  warningBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF8E1', padding: 12, borderRadius: 8, marginTop: 12, borderWidth: 1, borderColor: '#FFECB3' },
+  warningText: { color: '#FFA000', fontSize: 12, marginLeft: 8, flex: 1 },
   buttonContainer: { paddingVertical: 30, paddingBottom: 50 },
   addButton: { borderRadius: 12, elevation: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.2, shadowRadius: 4 },
   disabledButton: { elevation: 2, shadowOpacity: 0.1 },

@@ -1,278 +1,236 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  StyleSheet, 
-  Alert,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Dimensions 
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity, StyleSheet, Image,
+  Dimensions, Animated, KeyboardAvoidingView, Platform,
+  StatusBar, Alert, ActivityIndicator, ScrollView
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
-// SupplierLogin.js
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+
+const { width } = Dimensions.get('window');
+
 const SupplierLogin = ({ navigation }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [focusedInput, setFocusedInput] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Animation setup
+  const slideAnim = useRef(new Animated.Value(100)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 900, useNativeDriver: true }),
+    ]).start();
+  }, []);
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please enter email and password');
+      Alert.alert('Incomplete Fields', 'Please enter both your email and password.');
       return;
     }
+
+    setIsLoading(true);
 
     try {
       const response = await fetch('http://localhost:5000/api/suppliers/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        navigation.navigate('SupplierDashboard', { supplier: data });
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        await AsyncStorage.setItem('userToken', data.data.token);
+        await AsyncStorage.setItem('userData', JSON.stringify(data.data.supplier));
+        navigation.replace('SupplierDashboard');
       } else {
-        Alert.alert('Error', 'Invalid credentials');
+        Alert.alert('Login Failed', data.message || 'Invalid email or password.');
       }
     } catch (error) {
-      Alert.alert('Error', 'Network error occurred');
+      console.error('Login error:', error);
+      Alert.alert('Network Error', 'Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <LinearGradient
-      colors={['#cc9966', '#8B4513']}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.backButtonContainer}>
-          <TouchableOpacity 
-            style={styles.backButton} 
-            onPress={() => navigation.goBack()}
-            activeOpacity={0.7}
-          >
-            <MaterialIcons name="arrow-back" size={24} color="#5c3d2e" />
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <StatusBar backgroundColor='#4B1E0F' barStyle='light-content' />
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        <View style={styles.imageContainer}>
+          <Image
+            source={require('../../assets/images/BuyerLogin.jpg')}
+            style={styles.image}
+            resizeMode='cover'
+          />
+          <View style={styles.imageOverlay} />
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <MaterialIcons name='arrow-back' size={26} color='white' />
           </TouchableOpacity>
         </View>
 
+        <Animated.View style={[styles.formContainer, { transform: [{ translateY: slideAnim }], opacity: fadeAnim }]}>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Enter your details to log in</Text>
 
-
-        {/* Header */}
-        <View style={styles.headerSection}>
-          <View style={styles.logoContainer}>
-            <Text style={styles.logo}>Spices-Link</Text>
-            <View style={styles.logoUnderline} />
+          <View style={styles.inputContainer}>
+            <MaterialIcons name='email' size={22} color='#8B4513' style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder='Enter Your Email Address'
+              placeholderTextColor='#A0522D'
+              value={email}
+              onChangeText={setEmail}
+              keyboardType='email-address'
+              autoCapitalize='none'
+            />
           </View>
-          <Text style={styles.welcomeText}>Supplier Login</Text>
-          <Text style={styles.subtitle}>Welcome back! Please sign in to continue</Text>
-        </View>
 
-        {/* Login Form */}
-        <View style={styles.formContainer}>
-          <View style={styles.formCard}>
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Email Address</Text>
-              <View style={[
-                styles.inputContainer,
-                focusedInput === 'email' && styles.inputContainerFocused
-              ]}>
-                <FontAwesome name="envelope" size={20} color="#cc9966" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email address"
-                  placeholderTextColor="#999"
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  onFocus={() => setFocusedInput('email')}
-                  onBlur={() => setFocusedInput(null)}
-                />
-              </View>
-            </View>
+          <View style={styles.inputContainer}>
+            <MaterialIcons name='lock' size={22} color='#8B4513' style={styles.inputIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder='Enter Your Password'
+              placeholderTextColor='#A0522D'
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+            />
+          </View>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <View style={[
-                styles.inputContainer,
-                focusedInput === 'password' && styles.inputContainerFocused
-              ]}>
-                <FontAwesome name="lock" size={20} color="#cc9966" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#999"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  onFocus={() => setFocusedInput('password')}
-                  onBlur={() => setFocusedInput(null)}
-                />
-              </View>
-            </View>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleLogin}
+            disabled={isLoading}
+          >
+            {isLoading
+              ? <ActivityIndicator size='small' color='#FFFFFF' />
+              : <Text style={styles.buttonText}>Log In</Text>
+            }
+          </TouchableOpacity>
 
-            <TouchableOpacity 
-              style={styles.loginButton} 
-              onPress={handleLogin}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#5c3d2e', '#4a2c20']}
-                style={styles.buttonGradient}
-              >
-                <Text style={styles.loginButtonText}>Sign In</Text>
-              </LinearGradient>
+          <View style={styles.footer}>
+            <Text style={styles.signUpText}>Don't have an account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('SupplierRegistration')}>
+              <Text style={styles.signUpLink}>Sign Up</Text>
             </TouchableOpacity>
-
-            <View style={styles.loginSection}>
-              <Text style={styles.loginPrompt}>Don't have an account?</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('SupplierRegistration')}>
-                <Text style={styles.loginLink}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </View>
+        </Animated.View>
       </ScrollView>
-    </LinearGradient>
+    </KeyboardAvoidingView>
   );
 };
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-      padding: 20,
-      justifyContent: 'center',
-      alignItems: 'center',
+    backgroundColor: '#FFF8F0',
   },
-  scrollContent: {
-      flexGrow: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+  imageContainer: {
+    width: width,
+    height: 280,
+    backgroundColor: '#4B1E0F',
   },
-  headerSection: {
-      alignItems: 'center',
-      marginBottom: 40,
-  },
-  logoContainer: {
-      alignItems: 'center',
-      marginBottom: 20,
-  },
-  logo: {         
-      fontSize: 36,
-      fontWeight: 'bold',
-      color: '#5c3d2e',
-  },  
-      logoUnderline: {
-      width: 100,
-      height: 4,
-      backgroundColor: '#cc9966',         
-      marginTop: 10,
-      borderRadius: 2,
-      },
-      welcomeText: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      color: '#5c3d2e',
-      marginBottom: 10,
-            
-      },    
-      subtitle: {
-      fontSize: 16,
-      color: '#4a2c20',
-      textAlign: 'center',
-      marginBottom: 20,
-      },
-  formContainer: {
+  image: {
     width: '100%',
-      maxWidth: 400,
-      padding: 20,
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderRadius: 20,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.3,
-      shadowRadius: 20,
-      elevation: 10,
+    height: '100%',
   },
-      formCard: {
-      marginBottom: 20,
-      padding: 20,
-      backgroundColor: 'rgba(255, 255, 255, 0.95)',
-      borderRadius: 20,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.3,
-      shadowRadius: 20,
-      elevation: 10,          
-      },
-      inputGroup: {
-      marginBottom: 20,
+  imageOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
-  inputLabel: {   
-      fontSize: 16,
-      color: '#4a2c20',
-      marginBottom: 5,
-      },
-      inputContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: '#cc9966',
-      borderRadius: 10,
-      paddingHorizontal: 10,
-      height: 50,
-      backgroundColor: 'white',
+  backButton: {
+    position: 'absolute',
+    top: Platform.OS === 'android' ? StatusBar.currentHeight + 15 : 50,
+    left: 15,
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
   },
-      inputContainerFocused: {
-      borderColor: '#5c3d2e',
-      borderWidth: 2,
+  formContainer: {
+    flex: 1,
+    backgroundColor: '#FFF8F0',
+    paddingHorizontal: 25,
+    paddingTop: 30,
+    marginTop: -40,
+    borderTopLeftRadius: 40,
+    borderTopRightRadius: 40,
   },
-      inputIcon: {
-      marginRight: 10,
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#4B1E0F',
+    textAlign: 'center',
+    marginBottom: 8,
   },
-  input: {  
-      flex: 1,
-      fontSize: 16,
-      color: '#4a2c20',
-      paddingVertical: 0,
-      paddingHorizontal: 5,
+  subtitle: {
+    fontSize: 16,
+    color: '#5a3e2b',
+    textAlign: 'center',
+    marginBottom: 30,
   },
-      loginButton: {
-      marginTop: 20,
-      borderRadius: 10,
-      overflow: 'hidden',
-      },
-      buttonGradient: {
-      paddingVertical: 15,
-      alignItems: 'center',
-      borderRadius: 10, 
-      },
-      loginButtonText: {
-      fontSize: 18,
-      color: 'white',
-      fontWeight: 'bold',
-      },
-      loginSection: {
-      flexDirection: 'row',
-      justifyContent: 'center',
-      marginTop: 20,
-      },
-      loginPrompt: {
-      fontSize: 16,
-      color: '#4a2c20',
-      marginRight: 5,
-      },    
-      loginLink: {
-      fontSize: 16,
-      color: '#5c3d2e',
-      fontWeight: 'bold',
-      },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    width: '100%',
+    height: 55,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#F5DEB3',
+    elevation: 2,
+    shadowColor: '#8B4513',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  inputIcon: {
+    marginRight: 10,
+  },
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: '#5a3e2b',
+  },
+  loginButton: {
+    backgroundColor: '#4B1E0F',
+    paddingVertical: 15,
+    borderRadius: 12,
+    marginTop: 10,
+    width: '100%',
+    alignItems: 'center',
+    elevation: 3,
+    shadowColor: '#4B1E0F',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 25,
+    paddingBottom: 20,
+  },
+  signUpText: {
+    fontSize: 15,
+    color: '#5a3e2b',
+  },
+  signUpLink: {
+    fontWeight: 'bold',
+    color: '#8B4513',
+    fontSize: 15,
+  },
 });
-export default SupplierLogin ;
+
+export default SupplierLogin;

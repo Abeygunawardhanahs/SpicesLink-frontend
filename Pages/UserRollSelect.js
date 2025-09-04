@@ -1,9 +1,13 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const UserRollSelect = ({ navigation }) => {
   return (
-    <View style={styles.container}>
+    <LinearGradient
+      colors={['#ee800298', '#f39344ff']}
+      style={styles.container} // Apply the container styles to LinearGradient
+    >
       {/* Title */}
       <Text style={styles.title}>Spices-Link</Text>
 
@@ -28,14 +32,13 @@ const UserRollSelect = ({ navigation }) => {
       >
         <Text style={styles.buyerText}>Buyer</Text>
       </TouchableOpacity>
-    </View>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#cc9966', // Background color matching the theme
     alignItems: 'center',
     justifyContent: 'center',
   },
