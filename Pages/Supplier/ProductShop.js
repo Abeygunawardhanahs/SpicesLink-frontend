@@ -150,24 +150,24 @@ const ProductShops = ({ route, navigation }) => {
           </TouchableOpacity>
         </View>
 
-        <View style={styles.shopDetails}>
-          <View style={styles.detailRow}>
+        {/* <View style={styles.shopDetails}> */}
+          {/* <View style={styles.detailRow}>
             <MaterialIcons name="phone" size={16} color="#8B7355" />
             <Text style={styles.detailText}>{item.contactNumber}</Text>
-          </View>
+          </View> */}
           
-          <View style={styles.priceQuantityRow}>
-            <View style={styles.priceInfo}>
+          {/* <View style={styles.priceQuantityRow}> */}
+            {/* <View style={styles.priceInfo}>
               <MaterialIcons name="attach-money" size={16} color="#4CAF50" />
               <Text style={styles.priceText}>{item.price}</Text>
-            </View>
-            <View style={styles.quantityInfo}>
+            </View> */}
+            {/* <View style={styles.quantityInfo}>
               <MaterialIcons name="inventory" size={16} color="#2196F3" />
               <Text style={styles.quantityText}>{item.weeklyQuantity}</Text>
-            </View>
-          </View>
+            </View> */}
+          {/* </View> */}
 
-          <View style={styles.availabilityRow}>
+          {/* <View style={styles.availabilityRow}>
             <MaterialIcons 
               name="circle" 
               size={12} 
@@ -179,14 +179,14 @@ const ProductShops = ({ route, navigation }) => {
             ]}>
               {item.availability}
             </Text>
-          </View>
+          </View> */}
           
           {/* Added tap to view details indicator */}
           <View style={styles.viewDetailsRow}>
             <Text style={styles.viewDetailsText}>Tap to view details</Text>
             <MaterialIcons name="arrow-forward-ios" size={14} color="#cc9966" />
           </View>
-        </View>
+        {/* </View> */}
       </LinearGradient>
     </TouchableOpacity>
   );

@@ -21,7 +21,7 @@ const API_BASE_URL = 'http://192.168.0.100:5000';
 
 const ProductPriceScreen = ({ route, navigation }) => {
   const { product, productId, productName } = route.params;
-  
+
   const [priceHistory, setPriceHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -35,27 +35,58 @@ const ProductPriceScreen = ({ route, navigation }) => {
   const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
   const [currentPriceItem, setCurrentPriceItem] = useState(null);
 
-  // Fetch price history for this product
+  // Fetch price history with better error handling
   const fetchPriceHistory = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/products/${productId}/prices`);
-      if (response.ok) {
-        const data = await response.json();
+      
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      console.log(`Fetching price history for productId: ${productId}`);
+      
+      const response = await fetch(`${API_BASE_URL}/api/products/${productId}/prices`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      console.log('Price history response:', data);
+
+      if (data.success) {
         setPriceHistory(data.prices || []);
       } else {
-        console.error('Failed to fetch price history');
+        console.error('API returned error:', data.message);
         setPriceHistory([]);
+        Alert.alert('Error', data.message || 'Failed to fetch price history');
       }
+
     } catch (error) {
       console.error('Error fetching price history:', error);
       setPriceHistory([]);
+      
+      if (error.name === 'AbortError') {
+        Alert.alert('Timeout', 'Request timed out. Please check your connection and try again.');
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('Network request failed')) {
+        Alert.alert('Connection Error', 'Unable to connect to server. Please check your network connection.');
+      } else {
+        Alert.alert('Error', 'Failed to load price history. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  // Refresh price history when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       fetchPriceHistory();
@@ -72,12 +103,21 @@ const ProductPriceScreen = ({ route, navigation }) => {
     setIsRefreshing(false);
   }, []);
 
+  // Add price with better error handling
   const handleAddPrice = async () => {
     const pricePer100g = parseFloat(newPricePer100g.trim()) || 0;
     const weeklyQty = parseFloat(weeklyQuantity.trim()) || 0;
 
+    if (pricePer100g <= 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid price per 100g');
+      return;
+    }
+
     setIsAddingPrice(true);
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(`${API_BASE_URL}/api/products/${productId}/prices`, {
         method: 'POST',
         headers: {
@@ -88,35 +128,54 @@ const ProductPriceScreen = ({ route, navigation }) => {
           weeklyQuantity: weeklyQty,
           date: new Date().toISOString(),
         }),
+        signal: controller.signal,
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      clearTimeout(timeoutId);
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
         Alert.alert('Success', 'Price added successfully!');
         setNewPricePer100g('');
         setWeeklyQuantity('');
         setShowAddPriceModal(false);
         await fetchPriceHistory();
       } else {
-        const errorData = await response.json();
-        Alert.alert('Error', errorData.message || 'Failed to add price');
+        Alert.alert('Error', result.message || 'Failed to add price');
       }
     } catch (error) {
       console.error('Error adding price:', error);
-      Alert.alert('Error', 'Failed to add price. Please try again.');
+      if (error.name === 'AbortError') {
+        Alert.alert('Timeout', 'Request timed out. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to add price. Please check your connection and try again.');
+      }
     } finally {
       setIsAddingPrice(false);
     }
   };
 
+  // Update price with better error handling
   const handleUpdatePrice = async () => {
     const pricePer100g = parseFloat(updatePricePer100g.trim()) || 0;
     const weeklyQty = parseFloat(updateWeeklyQuantity.trim()) || 0;
 
-    if (!currentPriceItem) return;
+    if (!currentPriceItem) {
+      Alert.alert('Error', 'No price item selected for update');
+      return;
+    }
+
+    if (pricePer100g <= 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid price per 100g');
+      return;
+    }
 
     setIsUpdatingPrice(true);
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const response = await fetch(`${API_BASE_URL}/api/products/${productId}/prices/${currentPriceItem._id}`, {
         method: 'PUT',
         headers: {
@@ -126,10 +185,14 @@ const ProductPriceScreen = ({ route, navigation }) => {
           pricePer100g: pricePer100g,
           weeklyQuantity: weeklyQty,
         }),
+        signal: controller.signal,
       });
 
-      if (response.ok) {
-        const result = await response.json();
+      clearTimeout(timeoutId);
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
         Alert.alert('Success', 'Price updated successfully!');
         setUpdatePricePer100g('');
         setUpdateWeeklyQuantity('');
@@ -137,18 +200,20 @@ const ProductPriceScreen = ({ route, navigation }) => {
         setCurrentPriceItem(null);
         await fetchPriceHistory();
       } else {
-        const errorData = await response.json();
-        Alert.alert('Error', errorData.message || 'Failed to update price');
+        Alert.alert('Error', result.message || 'Failed to update price');
       }
     } catch (error) {
       console.error('Error updating price:', error);
-      Alert.alert('Error', 'Failed to update price. Please try again.');
+      if (error.name === 'AbortError') {
+        Alert.alert('Timeout', 'Request timed out. Please try again.');
+      } else {
+        Alert.alert('Error', 'Failed to update price. Please check your connection and try again.');
+      }
     } finally {
       setIsUpdatingPrice(false);
     }
   };
 
-  // Navigate to price details page
   const handlePriceItemClick = (priceItem) => {
     navigation.navigate('PriceDetailsScreen', {
       priceItem: priceItem,
@@ -157,7 +222,6 @@ const ProductPriceScreen = ({ route, navigation }) => {
     });
   };
 
-  // Open update modal with latest price data
   const handleUpdateClick = () => {
     const latestPrice = getCurrentPrice();
     if (latestPrice) {
@@ -173,14 +237,11 @@ const ProductPriceScreen = ({ route, navigation }) => {
   const formatDateDisplay = (dateString) => {
     const date = new Date(dateString);
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    
     const dayName = dayNames[date.getDay()];
     const day = date.getDate();
-    const month = date.getMonth();
+    const month = date.getMonth() + 1;
     const year = date.getFullYear();
-    
-    return `${dayName} ${day}-${month + 1}-${year}`;
+    return `${dayName} ${day}-${month}-${year}`;
   };
 
   const getCurrentPrice = () => {
@@ -188,24 +249,22 @@ const ProductPriceScreen = ({ route, navigation }) => {
     return priceHistory.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
   };
 
-  const renderPriceItem = ({ item, index }) => {
-    return (
-      <TouchableOpacity 
-        style={styles.priceItemCard}
-        onPress={() => handlePriceItemClick(item)}
-        activeOpacity={0.7}
+  const renderPriceItem = ({ item }) => (
+    <TouchableOpacity 
+      style={styles.priceItemCard}
+      onPress={() => handlePriceItemClick(item)}
+      activeOpacity={0.7}
+    >
+      <LinearGradient
+        colors={['#F4E4BC', '#E8D5A3']}
+        style={styles.priceItemGradient}
       >
-        <LinearGradient
-          colors={['#F4E4BC', '#E8D5A3']}
-          style={styles.priceItemGradient}
-        >
-          <Text style={styles.priceItemText}>
-            {formatDateDisplay(item.date)}
-          </Text>
-        </LinearGradient>
-      </TouchableOpacity>
-    );
-  };
+        <Text style={styles.priceItemText}>
+          {formatDateDisplay(item.date)}
+        </Text>
+      </LinearGradient>
+    </TouchableOpacity>
+  );
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>
@@ -246,7 +305,7 @@ const ProductPriceScreen = ({ route, navigation }) => {
           <Text style={styles.headerTitle}>{productName}</Text>
           <View style={styles.refreshButton} />
         </LinearGradient>
-        
+
         <View style={styles.loadingContainer}>
           <MaterialIcons name="hourglass-empty" size={60} color="#8B7355" />
           <Text style={styles.loadingText}>Loading price history...</Text>
@@ -272,7 +331,7 @@ const ProductPriceScreen = ({ route, navigation }) => {
         </TouchableOpacity>
       </LinearGradient>
 
-      {/* Product Header with Image */}
+      {/* Product Header */}
       <View style={styles.productHeader}>
         <Image source={getProductImageSource()} style={styles.productHeaderImage} />
         <Text style={styles.productHeaderName}>{productName}</Text>
@@ -283,13 +342,13 @@ const ProductPriceScreen = ({ route, navigation }) => {
         <Text style={styles.quantityPageText}>Quantity page</Text>
       </View>
 
-      {/* Price History List */}
+      {/* Price History */}
       {priceHistory.length > 0 ? (
         <View style={styles.listSection}>
           <FlatList
             data={priceHistory.sort((a, b) => new Date(b.date) - new Date(a.date))}
             renderItem={renderPriceItem}
-            keyExtractor={(item) => item._id}
+            keyExtractor={(item) => item._id || item.id || Math.random().toString()}
             contentContainerStyle={styles.listContainer}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -301,8 +360,7 @@ const ProductPriceScreen = ({ route, navigation }) => {
               />
             }
           />
-          
-          {/* Update Button */}
+
           <TouchableOpacity style={styles.updateButton} onPress={handleUpdateClick}>
             <LinearGradient
               colors={['#4E2A14', '#6B3820']}

@@ -28,6 +28,9 @@ import Products from './Pages/Supplier/Products';
 import ProductShops from './Pages/Supplier/ProductShop';
 import ProductPriceScreen from './Pages/ProductPriceScreen';
 import PriceDetailsScreen from './Pages/PriceDetailsScreen';
+import ShopDetails from './Pages/Supplier/ShopDetails';
+import PriceDetails from './Pages/Supplier/PriceDetails';
+import ReservationForm from './Pages/Supplier/ReservationForm';
 
 
 
@@ -61,6 +64,10 @@ function App() {
         <Stack.Screen name="ProductShops" component={ProductShops} />  
         <Stack.Screen name="ProductPriceScreen" component={ProductPriceScreen} />
         <Stack.Screen name="PriceDetailsScreen" component={PriceDetailsScreen} />
+        <Stack.Screen name="ShopDetails" component={ShopDetails} />
+        <Stack.Screen name="PriceDetails" component={PriceDetails} />
+        <Stack.Screen name="ReservationForm" component={ReservationForm} />
+
 
        
         

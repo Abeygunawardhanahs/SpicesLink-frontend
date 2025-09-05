@@ -9,6 +9,7 @@ import {
   Alert,
   Linking,
   ActivityIndicator,
+  SafeAreaView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -16,142 +17,210 @@ import { MaterialIcons } from '@expo/vector-icons';
 const ShopDetails = ({ route, navigation }) => {
   const { shop, productName } = route.params;
   const [detailedShopInfo, setDetailedShopInfo] = useState(null);
+  const [priceHistory, setPriceHistory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Fetch detailed shop information
     fetchDetailedShopInfo();
+    fetchPriceHistory();
   }, []);
 
   const fetchDetailedShopInfo = async () => {
     try {
       setLoading(true);
-      setError(null);
 
-      // API call to get detailed shop info
+      if (!shop?.shopId) {
+        console.warn('Shop ID missing, using default shop data');
+        setDetailedShopInfo(getFallbackShopInfo());
+        return;
+      }
+
       const response = await fetch(
-        `http://192.168.0.100:5000/api/shops/${shop.shopId}/details?productName=${encodeURIComponent(productName)}`
+        `http://192.168.0.100:5000/api/products/shops/${shop.shopId}/details?productName=${encodeURIComponent(productName)}`
       );
+
       const data = await response.json();
 
-      if (response.ok && data.success) {
+      if (response.ok && data.success && data.shopDetails) {
         setDetailedShopInfo(data.shopDetails);
       } else {
-        // If API doesn't exist yet, use the shop data we already have
-        setDetailedShopInfo({
-          ...shop,
-          priceUpdatedDate: new Date().toLocaleDateString(),
-          description: 'Quality products at competitive prices',
-          rating: 4.2,
-          reviews: 156,
-          openingHours: '9:00 AM - 8:00 PM',
-          deliveryAvailable: true,
-          minimumOrder: 'Rs. 500',
-          paymentMethods: ['Cash', 'Card', 'Mobile Payment'],
-        });
+        console.warn('API returned no data, falling back to default shop info', data.message);
+        setDetailedShopInfo(getFallbackShopInfo());
       }
     } catch (err) {
       console.error('Error fetching detailed shop info:', err);
-      // Fallback to basic shop data with some defaults
-      setDetailedShopInfo({
-        ...shop,
-        priceUpdatedDate: new Date().toLocaleDateString(),
-        description: 'Quality products at competitive prices',
-        rating: 4.0,
-        reviews: 0,
-        openingHours: 'Contact for hours',
-        deliveryAvailable: false,
-        minimumOrder: 'Contact for details',
-        paymentMethods: ['Cash'],
-      });
+      setDetailedShopInfo(getFallbackShopInfo());
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchPriceHistory = async () => {
+    try {
+      // Fetch price history from the product
+      if (shop?.productId) {
+        const response = await fetch(
+          `http://192.168.0.100:5000/api/products/${shop.productId}/prices`
+        );
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          setPriceHistory(data.prices || []);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching price history:', err);
+      // Set some sample data for demo
+      setPriceHistory([
+        { 
+          date: '2025-04-05', 
+          pricePer100g: '120', 
+          weeklyQuantity: '50',
+          priceUpdated: '2025-04-05T10:30:00Z',
+          availability: 'In Stock'
+        },
+        { 
+          date: '2025-03-05', 
+          pricePer100g: '115', 
+          weeklyQuantity: '45',
+          priceUpdated: '2025-03-05T09:15:00Z',
+          availability: 'In Stock'
+        },
+        { 
+          date: '2025-02-05', 
+          pricePer100g: '110', 
+          weeklyQuantity: '40',
+          priceUpdated: '2025-02-05T11:45:00Z',
+          availability: 'Limited Stock'
+        },
+      ]);
+    }
+  };
+
+  const getFallbackShopInfo = () => ({
+    ...shop,
+    description: 'Quality spices and fresh ingredients at competitive prices',
+    shopName: shop.shopName || 'Samagi Store',
+    price: shop.price || 'Rs. 120/100g',
+    availability: shop.availability || 'In Stock',
+    weeklyQuantity: shop.weeklyQuantity || '50 units/week',
+    contactNumber: shop.contactNumber || '0702031499',
+    shopLocation: shop.shopLocation || 'Kirinda, Matara',
+    shopOwnerName: 'Mr. Perera',
+    telephone: '0412234567',
+    latitude: shop.latitude || 5.9485,
+    longitude: shop.longitude || 80.5353,
+  });
+
   const handleCall = () => {
+    const phoneNumber = detailedShopInfo?.contactNumber || detailedShopInfo?.telephone;
+    if (!phoneNumber) {
+      Alert.alert('Error', 'Contact number not available');
+      return;
+    }
+
     Alert.alert(
-      'Call Shop',
-      `Call ${detailedShopInfo.shopName}?`,
+      'Call Shop', 
+      `Call ${detailedShopInfo.shopName}?\n${phoneNumber}`, 
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Call',
+        { 
+          text: 'Call', 
           onPress: () => {
-            Linking.openURL(`tel:${detailedShopInfo.contactNumber}`);
-          },
+            Linking.openURL(`tel:${phoneNumber}`)
+              .catch(err => {
+                console.error('Error making call:', err);
+                Alert.alert('Error', 'Could not make the call');
+              });
+          }
         },
       ]
     );
   };
 
-  const handleDirections = () => {
+  const handleGetDirections = () => {
+    const { shopLocation, latitude, longitude } = detailedShopInfo;
+    
     Alert.alert(
       'Get Directions',
-      'Open directions in maps app?',
+      `Open directions to ${shopLocation}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Open Maps',
+          text: 'Google Maps',
           onPress: () => {
-            const query = encodeURIComponent(detailedShopInfo.shopLocation);
-            Linking.openURL(`https://maps.google.com/maps?q=${query}`);
-          },
+            let url;
+            if (latitude && longitude) {
+              // Use coordinates if available
+              url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
+            } else {
+              // Use address search
+              url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shopLocation)}`;
+            }
+            
+            Linking.openURL(url)
+              .catch(err => {
+                console.error('Error opening maps:', err);
+                Alert.alert('Error', 'Could not open Google Maps');
+              });
+          }
         },
+        {
+          text: 'Apple Maps',
+          onPress: () => {
+            let url;
+            if (latitude && longitude) {
+              url = `http://maps.apple.com/?daddr=${latitude},${longitude}`;
+            } else {
+              url = `http://maps.apple.com/?q=${encodeURIComponent(shopLocation)}`;
+            }
+            
+            Linking.openURL(url)
+              .catch(err => {
+                console.error('Error opening Apple Maps:', err);
+                // Fallback to Google Maps
+                const fallbackUrl = latitude && longitude 
+                  ? `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`
+                  : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shopLocation)}`;
+                
+                Linking.openURL(fallbackUrl);
+              });
+          }
+        }
       ]
     );
   };
 
-  const renderStars = (rating) => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 !== 0;
-
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(
-        <MaterialIcons key={i} name="star" size={16} color="#FFD700" />
-      );
-    }
-
-    if (hasHalfStar) {
-      stars.push(
-        <MaterialIcons key="half" name="star-half" size={16} color="#FFD700" />
-      );
-    }
-
-    const emptyStars = 5 - Math.ceil(rating);
-    for (let i = 0; i < emptyStars; i++) {
-      stars.push(
-        <MaterialIcons
-          key={`empty-${i}`}
-          name="star-border"
-          size={16}
-          color="#FFD700"
-        />
-      );
-    }
-
-    return stars;
+  const handlePriceDetails = (priceEntry) => {
+    // Navigate to price details screen
+    navigation.navigate('PriceDetails', {
+      priceData: priceEntry,
+      productName: productName,
+      shopInfo: detailedShopInfo,
+    });
   };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`;
+  };
+
+  const InfoCard = ({ children, style }) => (
+    <View style={[styles.infoCard, style]}>
+      {children}
+    </View>
+  );
 
   if (loading) {
     return (
-      <ImageBackground
-        source={require('../../assets/images/download.jpg')}
+      <ImageBackground 
+        source={{ uri: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80' }} 
         style={styles.container}
+        resizeMode="cover"
       >
         <View style={styles.overlay}>
-          <View style={styles.header}>
-            <TouchableOpacity onPress={() => navigation.goBack()}>
-              <MaterialIcons name="arrow-back" size={28} color="#fff" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Shop Details</Text>
-            <View style={styles.placeholder} />
-          </View>
-
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#cc9966" />
+            <ActivityIndicator size="large" color="#D4AF37" />
             <Text style={styles.loadingText}>Loading shop details...</Text>
           </View>
         </View>
@@ -160,211 +229,313 @@ const ShopDetails = ({ route, navigation }) => {
   }
 
   return (
-    <ImageBackground
-      source={require('../../assets/images/download.jpg')}
+    <ImageBackground 
+      source={{ uri: 'https://images.unsplash.com/photo-1596040033229-a9821ebd058d?ixlib=rb-4.0.3&auto=format&fit=crop&w=1000&q=80' }} 
       style={styles.container}
+      resizeMode="cover"
     >
       <View style={styles.overlay}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <MaterialIcons name="arrow-back" size={28} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{detailedShopInfo?.shopName}</Text>
-          <TouchableOpacity onPress={handleCall}>
-            <MaterialIcons name="phone" size={28} color="#fff" />
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Main Shop Info Card */}
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.95)', 'rgba(252, 231, 196, 0.95)']}
-            style={styles.mainCard}
-          >
-            <View style={styles.shopHeader}>
-              <View style={styles.shopIcon}>
-                <MaterialIcons name="store" size={40} color="#5c3d2e" />
-              </View>
-              <View style={styles.shopBasicInfo}>
-                <Text style={styles.shopName}>{detailedShopInfo?.shopName}</Text>
-                <View style={styles.ratingRow}>
-                  <View style={styles.starsContainer}>
-                    {renderStars(detailedShopInfo?.rating || 0)}
-                  </View>
-                  <Text style={styles.ratingText}>
-                    {detailedShopInfo?.rating?.toFixed(1)} ({detailedShopInfo?.reviews} reviews)
-                  </Text>
-                </View>
-                <Text style={styles.description}>{detailedShopInfo?.description}</Text>
-              </View>
-            </View>
-          </LinearGradient>
-
-          {/* Product Price Info */}
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.95)', 'rgba(252, 231, 196, 0.95)']}
-            style={styles.card}
-          >
-            <Text style={styles.cardTitle}>Product Information</Text>
-            <View style={styles.productInfo}>
-              <Text style={styles.productName}>{productName}</Text>
-              <View style={styles.priceRow}>
-                <View style={styles.priceContainer}>
-                  <MaterialIcons name="attach-money" size={24} color="#4CAF50" />
-                  <Text style={styles.priceValue}>{detailedShopInfo?.price}</Text>
-                </View>
-                <View style={styles.availabilityContainer}>
-                  <MaterialIcons
-                    name="circle"
-                    size={12}
-                    color={detailedShopInfo?.availability === 'In Stock' ? '#4CAF50' : '#F44336'}
-                  />
-                  <Text
-                    style={[
-                      styles.availabilityText,
-                      {
-                        color:
-                          detailedShopInfo?.availability === 'In Stock' ? '#4CAF50' : '#F44336',
-                      },
-                    ]}
-                  >
-                    {detailedShopInfo?.availability}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.infoRow}>
-                <MaterialIcons name="inventory" size={16} color="#2196F3" />
-                <Text style={styles.infoText}>Weekly Quantity: {detailedShopInfo?.weeklyQuantity}</Text>
-              </View>
-              <View style={styles.infoRow}>
-                <MaterialIcons name="update" size={16} color="#FF9800" />
-                <Text style={styles.infoText}>Price Updated: {detailedShopInfo?.priceUpdatedDate}</Text>
-              </View>
-            </View>
-          </LinearGradient>
-
-          {/* Contact Information */}
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.95)', 'rgba(252, 231, 196, 0.95)']}
-            style={styles.card}
-          >
-            <Text style={styles.cardTitle}>Contact Information</Text>
-            <View style={styles.contactInfo}>
-              <TouchableOpacity style={styles.contactRow} onPress={handleCall}>
-                <MaterialIcons name="phone" size={20} color="#4CAF50" />
-                <Text style={styles.contactText}>{detailedShopInfo?.contactNumber}</Text>
-                <MaterialIcons name="arrow-forward-ios" size={16} color="#cc9966" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.contactRow} onPress={handleDirections}>
-                <MaterialIcons name="location-on" size={20} color="#F44336" />
-                <Text style={styles.contactText}>{detailedShopInfo?.shopLocation}</Text>
-                <MaterialIcons name="arrow-forward-ios" size={16} color="#cc9966" />
-              </TouchableOpacity>
-            </View>
-          </LinearGradient>
-
-          {/* Shop Details */}
-          <LinearGradient
-            colors={['rgba(255, 255, 255, 0.95)', 'rgba(252, 231, 196, 0.95)']}
-            style={styles.card}
-          >
-            <Text style={styles.cardTitle}>Shop Details</Text>
-            <View style={styles.shopDetailsInfo}>
-              <View style={styles.detailRow}>
-                <MaterialIcons name="access-time" size={18} color="#2196F3" />
-                <Text style={styles.detailLabel}>Opening Hours:</Text>
-                <Text style={styles.detailValue}>{detailedShopInfo?.openingHours}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <MaterialIcons name="local-shipping" size={18} color="#FF9800" />
-                <Text style={styles.detailLabel}>Delivery:</Text>
-                <Text style={styles.detailValue}>
-                  {detailedShopInfo?.deliveryAvailable ? 'Available' : 'Not Available'}
-                </Text>
-              </View>
-              <View style={styles.detailRow}>
-                <MaterialIcons name="shopping-cart" size={18} color="#9C27B0" />
-                <Text style={styles.detailLabel}>Minimum Order:</Text>
-                <Text style={styles.detailValue}>{detailedShopInfo?.minimumOrder}</Text>
-              </View>
-              <View style={styles.detailRow}>
-                <MaterialIcons name="payment" size={18} color="#4CAF50" />
-                <Text style={styles.detailLabel}>Payment Methods:</Text>
-                <Text style={styles.detailValue}>
-                  {detailedShopInfo?.paymentMethods?.join(', ')}
-                </Text>
-              </View>
-            </View>
-          </LinearGradient>
-
-          {/* Action Buttons */}
-          <View style={styles.actionButtons}>
-            <TouchableOpacity style={styles.primaryButton} onPress={handleCall}>
-              <MaterialIcons name="phone" size={24} color="#fff" />
-              <Text style={styles.primaryButtonText}>Call Shop</Text>
+        <SafeAreaView style={styles.safeArea}>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+              <MaterialIcons name="arrow-back" size={24} color="#FFF" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.secondaryButton} onPress={handleDirections}>
-              <MaterialIcons name="directions" size={24} color="#5c3d2e" />
-              <Text style={styles.secondaryButtonText}>Get Directions</Text>
+            <Text style={styles.headerTitle}>Shop Details</Text>
+            <TouchableOpacity style={styles.menuButton}>
+              <MaterialIcons name="more-vert" size={24} color="#FFF" />
             </TouchableOpacity>
           </View>
-        </ScrollView>
+
+          <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+            {/* Shop Details Card */}
+            <InfoCard style={styles.shopDetailsCard}>
+              <Text style={styles.sectionTitle}>Shop Details</Text>
+              
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Shop name :</Text>
+                <Text style={styles.detailValue}>{detailedShopInfo?.shopName}</Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Location :</Text>
+                <Text style={styles.detailValue}>{detailedShopInfo?.shopLocation}</Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Tele :</Text>
+                <Text style={styles.detailValue}>{detailedShopInfo?.contactNumber}</Text>
+              </View>
+              
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Shop owner name :</Text>
+                <Text style={styles.detailValue}>{detailedShopInfo?.shopOwnerName}</Text>
+              </View>
+            </InfoCard>
+
+            {/* Price Updates Card */}
+            <InfoCard style={styles.priceUpdatesCard}>
+              <Text style={styles.sectionTitle}>Price Updates</Text>
+              
+              {priceHistory.length > 0 ? (
+                priceHistory.slice(0, 3).map((priceEntry, index) => (
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.priceUpdateItem}
+                    onPress={() => handlePriceDetails(priceEntry)}
+                  >
+                    <View style={styles.priceUpdateHeader}>
+                      <Text style={styles.priceUpdateDate}>
+                        {formatDate(priceEntry.date)}
+                      </Text>
+                      <MaterialIcons name="chevron-right" size={20} color="#8B4513" />
+                    </View>
+                    <View style={styles.priceUpdateDetails}>
+                      <Text style={styles.priceText}>Rs. {priceEntry.pricePer100g}/100g</Text>
+                      <Text style={styles.quantityText}>{priceEntry.weeklyQuantity} units/week</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))
+              ) : (
+                <>
+                  <TouchableOpacity 
+                    style={styles.priceUpdateItem}
+                    onPress={() => handlePriceDetails({ 
+                      date: '2025-04-05', 
+                      pricePer100g: '120', 
+                      weeklyQuantity: '50' 
+                    })}
+                  >
+                    <View style={styles.priceUpdateHeader}>
+                      <Text style={styles.priceUpdateDate}>4/5/2025</Text>
+                      <MaterialIcons name="chevron-right" size={20} color="#8B4513" />
+                    </View>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.priceUpdateItem}
+                    onPress={() => handlePriceDetails({ 
+                      date: '2025-03-05', 
+                      pricePer100g: '115', 
+                      weeklyQuantity: '45' 
+                    })}
+                  >
+                    <View style={styles.priceUpdateHeader}>
+                      <Text style={styles.priceUpdateDate}>3/5/2025</Text>
+                      <MaterialIcons name="chevron-right" size={20} color="#8B4513" />
+                    </View>
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={styles.priceUpdateItem}
+                    onPress={() => handlePriceDetails({ 
+                      date: '2025-02-05', 
+                      pricePer100g: '110', 
+                      weeklyQuantity: '40' 
+                    })}
+                  >
+                    <View style={styles.priceUpdateHeader}>
+                      <Text style={styles.priceUpdateDate}>2/5/2025</Text>
+                      <MaterialIcons name="chevron-right" size={20} color="#8B4513" />
+                    </View>
+                  </TouchableOpacity>
+                </>
+              )}
+            </InfoCard>
+
+            {/* Action Buttons */}
+            <View style={styles.actionButtonsContainer}>
+              <TouchableOpacity style={styles.callButton} onPress={handleCall}>
+                <MaterialIcons name="phone" size={20} color="#FFF" />
+                <Text style={styles.callButtonText}>Call Shop</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity style={styles.directionsButton} onPress={handleGetDirections}>
+                <MaterialIcons name="directions" size={20} color="#8B4513" />
+                <Text style={styles.directionsButtonText}>Get Directions</Text>
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </SafeAreaView>
       </View>
     </ImageBackground>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, width: '100%', height: '100%' },
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  container: {
+    flex: 1,
+  },
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  safeArea: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#FFF',
+    marginTop: 10,
+    fontSize: 16,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 40,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  headerTitle: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  placeholder: { width: 28, height: 28 },
-  content: { flex: 1, paddingHorizontal: 20 },
-  scrollContent: { paddingBottom: 30 },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText: { marginTop: 10, color: '#fff', fontSize: 16 },
-  mainCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    borderRadius: 10,
-    padding: 15,
-    marginBottom: 20,
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    color: '#FFF',
+    fontSize: 20,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    flex: 1,
+  },
+  menuButton: {
+    padding: 8,
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  infoCard: {
+    backgroundColor: 'rgba(245, 245, 220, 0.95)',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
     elevation: 5,
   },
-  shopHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  shopIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#f0f0f0',
+  shopDetailsCard: {
+    marginTop: 10,
+  },
+  priceUpdatesCard: {
+    // Additional styling if needed
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#8B4513',
+    marginBottom: 16,
+    textAlign: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#D4AF37',
+    paddingBottom: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    paddingVertical: 8,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#DDD',
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#8B4513',
+    fontWeight: '600',
+    width: 120,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#5D4037',
+    flex: 1,
+  },
+  priceUpdateItem: {
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderLeftWidth: 4,
+    borderLeftColor: '#D4AF37',
+  },
+  priceUpdateHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  priceUpdateDate: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#8B4513',
+  },
+  priceUpdateDetails: {
+    marginTop: 4,
+    alignItems: 'flex-start',
+  },
+  priceText: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '600',
+  },
+  quantityText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  actionButtonsContainer: {
+    paddingVertical: 20,
+    paddingBottom: 30,
+  },
+  callButton: {
+    backgroundColor: '#8B4513',
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 15,
+    paddingVertical: 14,
+    borderRadius: 25,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
-  shopBasicInfo: { flex: 1 },
-  shopName: { fontSize: 20, fontWeight: 'bold', color: '#5c3d2e', marginBottom: 5 },
-  ratingRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-  starsContainer: { flexDirection: 'row', marginRight: 8 },
-  ratingText: { fontSize: 14, color: '#777' },
-  description: { fontSize: 14, color: '#555' },
+  callButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
+  directionsButton: {
+    backgroundColor: 'rgba(245, 245, 220, 0.9)',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#8B4513',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  directionsButtonText: {
+    color: '#8B4513',
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginLeft: 8,
+  },
 });
 
 export default ShopDetails;
